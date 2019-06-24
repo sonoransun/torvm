@@ -1,0 +1,1000 @@
+diff -Naur a/package/tor/Makefile b/package/tor/Makefile
+--- a/package/tor/Makefile	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/Makefile	2009-10-15 07:54:19.441778659 +0000
+@@ -0,0 +1,114 @@
++#
++# Copyright (C) 2008 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++# $Id: Makefile 11265 2008-05-25 13:45:00Z blogic $
++
++include $(TOPDIR)/rules.mk
++include $(INCLUDE_DIR)/kernel.mk
++
++PKG_NAME:=tor
++PKG_VERSION:=0.2.2.5-alpha
++
++PKG_RELEASE:=1
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://www.torproject.org/dist/
++PKG_MD5SUM:=6cec2090ceb3afdc5b329eb2b009a7d0
++
++include $(INCLUDE_DIR)/package.mk
++
++define Package/tor
++  SECTION:=net
++  CATEGORY:=Network
++  DEPENDS:=+libevent +libopenssl +libpthread +zlib
++  TITLE:=An anonymous Internet communication system
++  URL:=https://www.torproject.org/
++endef
++
++define Package/tor/description
++ Tor is a toolset for a wide range of organizations and people that want to 
++ improve their safety and security on the Internet. Using Tor can help you 
++ anonymize web browsing and publishing, instant messaging, IRC, SSH, and 
++ more. Tor also provides a platform on which software developers can build 
++ new applications with built-in anonymity, safety, and privacy features.
++endef
++
++define Package/tor/conffiles
++/etc/tor/torrc
++endef
++
++define Package/tor/postinst
++#!/bin/sh
++
++name=tor
++id=52
++
++# do not change below
++# # check if we are on real system
++if [ -z "$${IPKG_INSTROOT}" ]; then
++        # create copies of passwd and group, if we use squashfs
++        rootfs=`mount |awk '/root/ { print $$5 }'`
++        if [ "$$rootfs" = "squashfs" ]; then
++                if [ -h /etc/group ]; then
++                        rm /etc/group
++                        cp /rom/etc/group /etc/group
++                fi
++                if [ -h /etc/passwd ]; then
++                        rm /etc/passwd
++                        cp /rom/etc/passwd /etc/passwd
++                fi
++        fi
++fi
++
++echo ""
++if [ -z "$$(grep ^\\$${name}: $${IPKG_INSTROOT}/etc/group)" ]; then
++        echo "adding group $$name to /etc/group"
++        echo "$${name}:x:$${id}:" >> $${IPKG_INSTROOT}/etc/group
++fi
++
++if [ -z "$$(grep ^\\$${name}: $${IPKG_INSTROOT}/etc/passwd)" ]; then
++        echo "adding user $$name to /etc/passwd"
++        echo "$${name}:x:$${id}:$${id}:$${name}:/tmp/.$${name}:/bin/false" >> $${IPKG_INSTROOT}/etc/passwd
++fi
++endef
++
++EXTRA_CFLAGS += -I$(LINUX_DIR)/include
++EXTRA_CPPFLAGS += -I$(LINUX_DIR)/include
++
++CONFIGURE_ARGS += \
++	--enable-eventdns \
++	--enable-transparent \
++	--enable-threads \
++	--with-libevent-dir="$(STAGING_DIR)/usr" \
++	--with-ssl-dir="$(STAGING_DIR)/usr" \
++
++CONFIGURE_VARS += \
++	CROSS_COMPILE="yes" \
++
++
++# pass CFLAGS again to override -O2 set by configure
++define Build/Compile
++	$(MAKE) -C $(PKG_BUILD_DIR) \
++		CFLAGS="$(TARGET_CFLAGS) -I$(LINUX_DIR)/include" \
++		DESTDIR="$(PKG_INSTALL_DIR)" \
++		all install
++endef
++
++define Package/tor/install
++	$(INSTALL_DIR) $(1)/usr/sbin
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/or/tor $(1)/usr/sbin/
++	$(INSTALL_DIR) $(1)/etc/init.d
++	$(INSTALL_BIN) ./files/tor.init $(1)/etc/init.d/tor
++	$(INSTALL_DIR) $(1)/sbin
++	$(INSTALL_BIN) ./files/vmrouter.sh $(1)/sbin/
++	$(INSTALL_BIN) ./files/torvminit $(1)/etc/
++	$(INSTALL_DIR) $(1)/etc/tor
++	$(INSTALL_DATA) ./files/torrc $(1)/etc/tor/torrc
++	$(INSTALL_DIR) $(1)/var/log/tor
++	$(INSTALL_DIR) $(1)/var/run/tor
++endef
++
++$(eval $(call BuildPackage,tor))
+diff -Naur a/package/tor/files/prio.sh b/package/tor/files/prio.sh
+--- a/package/tor/files/prio.sh	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/files/prio.sh	2009-03-15 04:16:44.189046000 +0000
+@@ -0,0 +1,192 @@
++#!/bin/bash
++# Written by Marco Bonetti & Mike Perry
++# Based on instructions from Dan Singletary's ADSL BW Management HOWTO:
++# http://www.faqs.org/docs/Linux-HOWTO/ADSL-Bandwidth-Management-HOWTO.html
++# This script is Public Domain.
++
++############################### README #################################
++
++# This script provides prioritization of Tor traffic below other
++# traffic on a Linux server. It has two modes of operation: UID based 
++# and IP based. 
++
++# UID BASED PRIORITIZATION
++#
++# The UID based method requires that Tor be launched from 
++# a specific user ID. The "User" Tor config setting is
++# insufficient, as it sets the UID after the socket is created.
++# Here is a C wrapper you can use to execute Tor and drop privs before 
++# it creates any sockets. 
++#
++# Compile with:
++# gcc -DUID=`id -u tor` -DGID=`id -g tor` tor_wrap.c -o tor_wrap
++#
++# #include <unistd.h>
++# int main(int argc, char **argv) {
++# if(initgroups("tor", GID) == -1) { perror("initgroups"); return 1; }
++# if(setresgid(GID, GID, GID) == -1) { perror("setresgid"); return 1; }
++# if(setresuid(UID, UID, UID) == -1) { perror("setresuid"); return 1; }
++# execl("/bin/tor", "/bin/tor", "-f", "/etc/tor/torrc", NULL);
++# perror("execl"); return 1;
++# }
++
++# IP BASED PRIORITIZATION
++#
++# The IP setting requires that a separate IP address be dedicated to Tor. 
++# Your Torrc should be set to bind to this IP for "OutboundBindAddress", 
++# "ListenAddress", and "Address".
++
++# GENERAL USAGE
++#
++# You should also tune the individual connection rate parameters below
++# to your individual connection. In particular, you should leave *some* 
++# minimum amount of bandwidth for Tor, so that Tor users are not 
++# completely choked out when you use your server's bandwidth. 30% is 
++# probably a reasonable choice. More is better of course.
++#
++# To start the shaping, run it as: 
++#   ./linux-tor-prio.sh 
++#
++# To get status information (useful to verify packets are getting marked
++# and prioritized), run:
++#   ./linux-tor-prio.sh status
++#
++# And to stop prioritization:
++#   ./linux-tor-prio.sh stop
++#
++########################################################################
++
++# BEGIN USER TUNABLE PARAMETERS
++
++DEV=eth0
++
++# NOTE! You must START Tor under this UID. Using the Tor User
++# config setting is NOT sufficient. See above.
++#TOR_UID=$(id -u tor)
++
++# If the UID mechanism doesn't work for you, you can set this parameter
++# instead. If set, it will take precedence over the UID setting. Note that
++# you need multiple IPs with one specifically devoted to Tor for this to
++# work.
++TOR_IP="$IP"
++
++# Average ping to most places on the net, milliseconds
++RTT_LATENCY=40
++
++# RATE_UP must be less than your connection's upload capacity in
++# kbits/sec. If it is larger, then the bottleneck will be at your
++# router's queue, which you do not control. This will cause congestion
++# and a revert to normal TCP fairness no matter what the queing
++# priority is.
++RATE_UP=1500
++
++# RATE_UP_TOR is the minimum speed your Tor connections will have in
++# kbits/sec.  They will have at least this much bandwidth for upload.
++# In general, you probably shouldn't set this too low, or else Tor
++# users who use your node will be completely choked out whenever your
++# machine does any other network activity. That is not very fun.
++RATE_UP_TOR=1000
++
++# RATE_UP_TOR_CEIL is the maximum rate allowed for all Tor trafic in
++# kbits/sec.
++RATE_UP_TOR_CEIL=1200
++
++#CHAIN=OUTPUT
++#CHAIN=PREROUTING
++CHAIN=POSTROUTING
++
++MTU=$MTU
++AVG_PKT=700
++
++# END USER TUNABLE PARAMETERS
++
++
++
++# The queue size should be no larger than your bandwidth-delay
++# product. This is RT latency*bandwidth/MTU/2
++
++BDP=$(expr $RTT_LATENCY \* $RATE_UP / $AVG_PKT)
++
++# Further research indicates that the BDP calculations should use
++# RTT/sqrt(n) where n is the expected number of active connections..
++
++BDP=$(expr $BDP / 4)
++
++if [ "$1" = "status" ]
++then
++	echo "[qdisc]"
++	tc -s qdisc show dev $DEV
++	tc -s qdisc show dev imq0
++	echo "[class]"
++	tc -s class show dev $DEV
++	tc -s class show dev imq0
++	echo "[filter]"
++	tc -s filter show dev $DEV
++	tc -s filter show dev imq0
++	echo "[iptables]"
++	iptables -t mangle -L TORSHAPER-OUT -v -x 2> /dev/null
++	exit
++fi
++
++
++# Reset everything to a known state (cleared)
++tc qdisc del dev $DEV root 2> /dev/null > /dev/null
++tc qdisc del dev imq0 root 2> /dev/null > /dev/null
++iptables -t mangle -D POSTROUTING -o $DEV -j TORSHAPER-OUT 2> /dev/null > /dev/null
++iptables -t mangle -D PREROUTING -o $DEV -j TORSHAPER-OUT 2> /dev/null > /dev/null
++iptables -t mangle -D OUTPUT -o $DEV -j TORSHAPER-OUT 2> /dev/null > /dev/null
++iptables -t mangle -F TORSHAPER-OUT 2> /dev/null > /dev/null
++iptables -t mangle -X TORSHAPER-OUT 2> /dev/null > /dev/null
++ip link set imq0 down 2> /dev/null > /dev/null
++rmmod imq 2> /dev/null > /dev/null
++
++if [ "$1" = "stop" ]
++then
++	echo "Shaping removed on $DEV."
++	exit
++fi
++
++# Outbound Shaping (limits total bandwidth to RATE_UP)
++
++ip link set dev $DEV qlen $BDP
++
++# Add HTB root qdisc, default is high prio
++tc qdisc add dev $DEV root handle 1: htb default 20
++
++# Add main rate limit class
++tc class add dev $DEV parent 1: classid 1:1 htb rate ${RATE_UP}kbit
++
++# Create the two classes, giving Tor at least RATE_UP_TOR kbit and capping
++# total upstream at RATE_UP so the queue is under our control.
++tc class add dev $DEV parent 1:1 classid 1:20 htb rate $(expr $RATE_UP - $RATE_UP_TOR)kbit ceil ${RATE_UP}kbit prio 0
++tc class add dev $DEV parent 1:1 classid 1:21 htb rate $[$RATE_UP_TOR]kbit ceil ${RATE_UP_TOR_CEIL}kbit prio 10
++
++# Start up pfifo
++tc qdisc add dev $DEV parent 1:20 handle 20: pfifo limit $BDP
++tc qdisc add dev $DEV parent 1:21 handle 21: pfifo limit $BDP
++
++# filter traffic into classes by fwmark
++tc filter add dev $DEV parent 1:0 prio 0 protocol ip handle 20 fw flowid 1:20
++tc filter add dev $DEV parent 1:0 prio 0 protocol ip handle 21 fw flowid 1:21
++
++# add TORSHAPER-OUT chain to the mangle table in iptables
++iptables -t mangle -N TORSHAPER-OUT
++iptables -t mangle -I $CHAIN -o $DEV -j TORSHAPER-OUT
++
++
++# Set firewall marks
++# Low priority to Tor
++if [ ""$TOR_IP == "" ]
++then
++	echo "Using UID-based QoS. UID $TOR_UID marked as low priority."
++	iptables -t mangle -A TORSHAPER-OUT -m owner --uid-owner $TOR_UID -j MARK --set-mark 21
++else
++	echo "Using IP-based QoS. $TOR_IP marked as low priority."
++	iptables -t mangle -A TORSHAPER-OUT -s $TOR_IP -j MARK --set-mark 21
++fi
++
++# High prio for everything else
++iptables -t mangle -A TORSHAPER-OUT -m mark --mark 0 -j MARK --set-mark 20
++
++echo "Outbound shaping added to $DEV.  Rate for Tor upload at least: ${RATE_UP_TOR}Kbyte/sec."
++
+diff -Naur a/package/tor/files/tor.init b/package/tor/files/tor.init
+--- a/package/tor/files/tor.init	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/files/tor.init	2009-09-20 12:24:45.820231100 +0000
+@@ -0,0 +1,144 @@
++#!/bin/sh 
++# make sure we check the system bin dirs
++export PATH=/usr/sbin:/sbin:$PATH
++BIN=tor
++DEFAULT=/etc/default/$BIN
++HOME_D=/home/$BIN
++CONF_F=$HOME_D/torrc
++GEOIP_F=/rofs/GEOIP.TXT
++LOG_D=/var/log/$BIN
++LOG_F=$LOG_D/notices.log
++SLOG_F=$LOG_D/start.log
++DATA_D=$HOME_D/data
++RUN_D=/var/run/$BIN
++PID_F=$RUN_D/$BIN.pid
++RUN_USER=$BIN
++RUN_GROUP=$BIN
++TOR_INTF=eth0
++TOR_SOCKSPORT=9050
++
++source /sbin/vmrouter.sh
++
++grep eth1: /proc/net/dev >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  TOR_INTF=eth1
++fi
++MYIP=$(ifconfig $TOR_INTF | grep 'inet addr' | sed 's/.*inet addr://' | sed 's/ .*//')
++ARGS=`cat /proc/cmdline`
++ARGS="_ $ARGS _"
++echo $ARGS | grep ' CTLSOCK=' >/dev/null 2>&1  
++if [ $? -eq 0 ]; then 
++  CTLADDR=$(echo $ARGS | sed 's/.* CTLSOCK=//' | sed 's/ .*//')
++  CTLIP=$(echo $CTLADDR | sed 's/:.*//')
++  CTLPORT=$(echo $CTLADDR | sed 's/.*://')
++fi
++echo $ARGS | grep ' SOCKSPORT=' >/dev/null 2>&1  
++if [ $? -eq 0 ]; then 
++  TOR_SOCKSPORT=$(echo $ARGS | sed 's/.* SOCKSPORT=//' | sed 's/ .*//')
++fi
++
++if [ "$1" = "start" ]; then
++	[ -f $DEFAULT ] && . $DEFAULT
++	[ -d $HOME_D ] || mkdir -p $HOME_D
++	[ -f $CONF_F ] || cp -f /etc/tor/torrc $CONF_F
++	[ -d $LOG_D ] || mkdir -p $LOG_D
++	rm -f $LOG_F >/dev/null 2>&1
++	chown $RUN_USER:$RUN_GROUP $LOG_D
++	[ -d $DATA_D ] || mkdir -p $DATA_D
++	chmod 700 $DATA_D
++	chown -R $RUN_USER:$RUN_GROUP $HOME_D
++	[ -d $RUN_D ] || mkdir -p $RUN_D
++	chown $RUN_USER:$RUN_GROUP $RUN_D
++	chmod 700 $RUN_D
++	# append any runtime options as needed
++	TMP_F="${CONF_F}_tmp"; \
++	echo $ARGS | grep ' FOLLOWTOR=TRUE ' >/dev/null 2>&1 ; \
++	if [ $? -eq 0 ]; then \
++	  FOLLOWTOR=1; \
++	fi; \
++	echo $ARGS | grep ' HASHPW=' >/dev/null 2>&1 ; \
++	if [ $? -eq 0 ]; then \
++	  HASHPW=`echo $ARGS | sed 's/.* HASHPW=//' | sed 's/ .*//'`; \
++	  cat $CONF_F | grep -v HashedControlPassword > $TMP_F; \
++	  echo "HashedControlPassword ${HASHPW}" >> $TMP_F; \
++	  mv -f $TMP_F $CONF_F; \
++	fi; \
++	echo $ARGS | grep ' CTLSOCK=' >/dev/null 2>&1 ; \
++	if [ $? -eq 0 ]; then \
++	  cat $CONF_F | grep -v ControlListenAddress | grep -v ControlPort | grep -v SocksListenAddress | grep -v SocksPort > $TMP_F; \
++	  echo "ControlListenAddress ${CTLADDR}" >> $TMP_F; \
++	  echo "ControlPort ${CTLPORT}" >> $TMP_F; \
++	  echo "SocksListenAddress ${CTLIP}:${TOR_SOCKSPORT}" >> $TMP_F; \
++	  echo "SocksPort $TOR_SOCKSPORT" >> $TMP_F; \
++	  mv -f $TMP_F $CONF_F; \
++	fi; \
++	if [ -f $GEOIP_F ]; then \
++		echo "GeoIPFile $GEOIP_F" >> $CONF_F; \
++	fi; \
++	chown $RUN_USER:$RUN_GROUP $CONF_F ; \
++	vmr_closetcp $TOR_INTF $MYIP $TOR_SOCKSPORT
++	vmr_opentcp $TOR_INTF $MYIP $CTLPORT
++	if [ "$FOLLOWTOR" = "1" ]; then \
++	  nohup /etc/init.d/tor dofollow >/dev/null 2>&1 & \
++        else \
++	  $BIN --runasdaemon 1 -f $CONF_F > $SLOG_F 2>&1 ; \
++	fi; 
++
++elif [ "$1" = "stop" ]; then
++	vmr_closetcp $TOR_INTF $MYIP $TOR_SOCKSPORT
++	vmr_closetcp $TOR_INTF $MYIP $CTLPORT
++	killall tor
++
++elif [ "$1" = "restart" ]; then
++	$0 stop
++	$0 start
++
++elif [ "$1" = "dofollow" ]; then
++	nohup /etc/init.d/tor doready >/dev/null 2>&1 & 
++	$BIN --runasdaemon 0 -f $CONF_F > $SLOG_F 2>&1
++	if [ -f $LOG_F ]; then
++	  # no log means we didn't really start; don't abort by default.
++          vmr_trapon
++	  reboot >/dev/null 2>&1 &
++	  sleep 1
++	  halt >/dev/null 2>&1
++	fi
++
++elif [ "$1" = "doready" ]; then
++	waiting=1
++	while [ "$waiting" -eq "1" ]; do
++	  grep 'Bootstrapped 100' $LOG_F >/dev/null 2>&1
++	  if [ "$?" -eq "0" ]; then
++            vmr_opentcp $TOR_INTF $MYIP $TOR_SOCKSPORT
++	    waiting=0
++          fi
++	done
++
++elif [ "$1" = "status" ]; then
++	while true; do
++	  clear;echo
++	  date
++	  echo
++	  echo "Tor VM local network IP address: $MYIP"
++	  echo
++	  # check if we are fully bootstrapped yet
++	  grep 'Bootstrapped 100' $LOG_F >/dev/null 2>&1
++	  if [ "$?" -ne "0" ]; then
++	  	echo "Tor is still trying to bootstrap into the network..."
++		echo "Be sure the Tor VM clock is correct and that your traffic"
++		echo " is not getting filtered upstream."
++		echo
++	  	grep Bootstrapped $LOG_F | sed 's/.*Bootstrapped/Bootstrapped/' | tail -6
++	  else
++	  	echo "Tor is fully connected into the Tor network."
++	  	echo "Transparent proxy traffic:"
++	  	iptables -n --verbose -t nat --list $cli_prenat_tbl| sed 's/opt .*destination.*/destination/'|sed 's/    0.0.0.0.0           //'|sed "s/\-\- .*${MYIP}   //"|grep -v $cli_prenat_tbl|grep -v $CTLPORT
++	  fi
++	  sleep 4
++	done  
++
++else
++	echo "Usage: $0 {start|stop|restart|status}" >&2
++	exit 1
++fi
++exit 0
+diff -Naur a/package/tor/files/torrc b/package/tor/files/torrc
+--- a/package/tor/files/torrc	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/files/torrc	2009-05-02 20:36:18.116609000 +0000
+@@ -0,0 +1,22 @@
++# Configuration for Tor VM
++User tor
++Group tor
++PidFile /var/run/tor/pid
++DataDirectory /home/tor/data
++Log notice file /var/log/tor/notices.log
++
++# This needs to be a network available via host default route
++VirtualAddrNetwork 10.254.0.0/16
++
++# Misc. options
++# note that we disable .exit notation to protect against some attacks
++AutomapHostsSuffixes .onion
++AutomapHostsOnResolve 1
++
++# options appended from command line placed below:
++SocksPort 9050
++SocksListenAddress 0.0.0.0
++DNSPort 9093
++DNSListenAddress 0.0.0.0
++TransPort 9095
++TransListenAddress 0.0.0.0
+diff -Naur a/package/tor/files/torvminit b/package/tor/files/torvminit
+--- a/package/tor/files/torvminit	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/files/torvminit	2009-09-20 12:23:57.918088545 +0000
+@@ -0,0 +1,294 @@
++#!/bin/sh
++# Copyright (C) 2008-2009  The Tor Project, Inc.
++# See LICENSE file for rights and terms.
++#
++d () {
++echo "    ${1}"
++}
++dn () {
++echo -n "    ${1}"
++}
++
++source /sbin/vmrouter.sh
++
++mount proc /proc -t proc
++mount sysfs /sys -t sysfs
++
++# if we don't have /proc something is very wrong.
++# abort to shell as this is likely a test kernel image.
++if [ ! -d /proc/self ]; then
++  d "ERROR: unable to access /proc , aborting init."
++  exec /bin/sh
++fi
++
++# setup various runtime options using kernel parameters
++ARGS=`cat /proc/cmdline`
++ARGS="_ $ARGS _"
++
++syslogd >/dev/null 2>&1
++
++clear;echo
++d "Initializing ..."
++
++HOSTNAME="Tor_VM"
++echo $ARGS | grep ' USEHOSTNAME=' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  HOSTNAME=`echo $ARGS | sed 's/.* USEHOSTNAME=//' | sed 's/ .*//' | sed 's/[^0-9a-zA-Z_-]//g'`
++fi
++export HOSTNAME
++hostname "$HOSTNAME" >/dev/null 2>&1
++
++if grep devfs /proc/filesystems > /dev/null; then
++	mount devfs /dev -t devfs
++elif [ -x /sbin/udevd ]; then
++	mount -n -t tmpfs -o mode=0755 udev /dev
++	/sbin/udevd --daemon
++	/sbin/udevtrigger
++	/sbin/udevsettle
++fi
++
++mkdir -p /dev/pts /dev/shm
++mount devpts /dev/pts -t devpts
++
++# setup device files
++mdbin=`which makedevs`
++devtable=/etc/device_table.txt
++if [ -x $mdbin ]; then 
++  makedevs -d $devtable / >/dev/null 2>&1
++else
++  mdbin=`which MAKEDEVS`
++  if [ -x $mdbin ]; then
++    MAKEDEVS >/dev/null 2>&1
++  fi
++fi
++
++# check for paravirt disk device
++hdmntopt="-onoatime,nodiratime"
++grep vda1 /proc/partitions >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  hddev=/dev/vda1
++else
++  grep hda1 /proc/partitions >/dev/null 2>&1
++  if [ $? -eq 0 ]; then
++    hddev=/dev/hda1
++  else
++    hddev=/dev/sda1
++  fi
++fi
++mkdir /home
++if [ -e $hddev ]  && mount $hdmntopt $hddev /home; then
++  # if the mount fails it may require a fs check / repair, or
++  # the virtual disk could be corrupt.  XXX: handle both cases correctly.
++
++  # check for saved entropy state and launch update daemon if exists
++  syshome=/home/system
++  if [ ! -d $syshome ]; then
++    mkdir -p $syshome
++  fi
++  chown root:root $syshome
++  chmod 700 $syshome
++  rndstate=$syshome/.rnd
++  if [ -f $rndstate ]; then
++    cat $rndstate > /dev/urandom 2>/dev/null
++  fi
++  # incorporate digest of kernel command line into entropy pool, as this should contain some local information
++  sha1sum /proc/cmdline > /dev/urandom 2>/dev/null
++  # launch process to periodically save entropy from pool for next boot (cannot assume clean shutdown)
++  nohup /bin/sh /bin/entropy-update.sh "$rndstate" >/dev/null 2>&1 &
++else
++  # XXX should we force reboot or halt instead?
++  echo 'ERROR: unable to mount persistent storage virtual disk!'
++  echo '       Do not run Tor in this configuration.'
++  sleep 3
++fi
++
++# if a read-only directory is available to mount from host OS mnt it too.
++rodrives="sdb sda hda hdc vdb vdc"
++rofsdev=""
++for RODR in $rodrives; do
++  grep $RODR /proc/partitions >/dev/null 2>&1
++  if [ $? -eq 0 ]; then
++    grep "${RODR}1" /proc/partitions >/dev/null 2>&1
++    if [ $? -ne 0 ]; then
++      rofsdev="/dev/${RODR}"
++    fi
++  fi
++done
++# If the VM software (Qemu) doesn't show CDROM as block dev, fallback to hdc
++if [[ "$rofsdev" == "" ]]; then
++  rofsdev=/dev/hdc
++fi
++rofsopt="-oro,noexec,nodev"
++if [ -e $rofsdev ]; then
++  mkdir /rofs
++  mount $rofsopt $rofsdev /rofs >/dev/null 2>&1
++  if [ $? -ne 0 ]; then
++    rmdir /rofs
++  fi
++fi
++
++mkdir -p /var/run
++mkdir -p /var/log
++mkdir -p /var/lock
++mkdir -p /var/state
++touch /var/log/wtmp
++touch /var/log/lastlog
++ln -sf /tmp/resolv.conf.auto /tmp/resolv.conf
++
++[ -f /etc/sysctl.conf ] && sysctl -p >&-
++
++ifconfig lo 127.0.0.1 netmask 255.0.0.0 up
++vmr_init
++
++# XXX need a good way to set this flexibly...
++TZ='PST8PDT,M3.2.0/2,M11.1.0/2'
++echo $ARGS | grep ' TZ=' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  TZ=`echo $ARGS | sed 's/.* TZ=//' | sed 's/ .*//'`
++fi
++export TZ
++echo "$TZ" > /etc/TZ
++
++echo $ARGS | grep ' NOINIT ' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  echo 'tty1::askfirst:/bin/ash --login' >> /etc/inittab
++else
++
++PRIVIP=10.99.11.1
++PRIVINTF=eth1
++echo $ARGS | grep ' PRIVIP=' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  PRIVIP=`echo $ARGS | sed 's/.* PRIVIP=//' | sed 's/ .*//' | sed 's/[^0-9.]//g'`
++fi
++grep $PRIVINTF: /proc/net/dev >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  ifconfig $PRIVINTF $PRIVIP netmask 255.255.255.252 up
++else
++  unset PRIVINTF
++fi
++
++echo $ARGS | grep ' DEBUGINIT ' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  klogd -c 1 >/dev/null 2>&1
++  vmr_logdrop
++  echo 'tty1::askfirst:/bin/ash --login' >> /etc/inittab
++  echo 'tty2::askfirst:/bin/ash --login' >> /etc/inittab
++  echo 'tty3::askfirst:/bin/ash --login' >> /etc/inittab
++  echo 'tty4::askfirst:/bin/ash --login' >> /etc/inittab
++  echo 'tty5::askfirst:/bin/ash --login' >> /etc/inittab
++else
++  echo 'tty1::respawn:/etc/init.d/tor status' >> /etc/inittab
++fi
++
++# if we're passed IP/routing info then do network pivot, otherwise just use dhcp
++netup=0
++echo $ARGS | grep ' IP=' >/dev/null 2>&1
++if [ $? -eq 0 ]; then
++  LEASE=""
++  DHCPSVR=""
++  DHCPNAME=""
++  # XXX we should be able to use character classes in busybox matching for repl.
++  # or possibly bash style string manipulation if ash is sufficiently capable...
++  export IP=`echo $ARGS | sed 's/.* IP=//' | sed 's/ .*//' | sed 's/[^0-9.]//g'`
++  export MASK=`echo $ARGS | sed 's/.* MASK=//' | sed 's/ .*//' | sed 's/[^0-9.]//g'`
++  export GW=`echo $ARGS | sed 's/.* GW=//' | sed 's/ .*//' | sed 's/[^0-9.]//g'`
++  export MAC=`echo $ARGS | sed 's/.* MAC=//' | sed 's/ .*//' | sed 's/[^0-9a-fA-F:.]//g'`
++  MTU=`echo $ARGS | sed 's/.* MTU=//' | sed 's/ .*//' | sed 's/[^0-9]//g'`
++  export ISDHCP=0
++  dn "Setting IP $IP / $MASK via $GW ..."
++  ifconfig eth0 hw ether $MAC
++  ifconfig eth0 $IP netmask $MASK up
++  ifconfig eth0 mtu $MTU
++  route add default gw $GW
++  vmr_fwdsetup eth0 
++  if [ ! -z $PRIVINTF ]; then
++    vmr_fwdadd $PRIVINTF $PRIVIP
++  fi
++  echo $ARGS | grep ' ISDHCP ' >/dev/null 2>&1
++  if [ $? -eq 0 ]; then
++    vmr_opendhcp eth0
++    export ISDHCP=1
++    export DHCPSVR=`echo $ARGS | sed 's/.* DHCPSVR=//' | sed 's/ .*//' | sed 's/[^0-9.]//g'`
++    export DHCPNAME=`echo $ARGS | sed 's/.* DHCPNAME=//' | sed 's/ .*//'`
++    # fire up udhcpc to keep the lease active for however long is needed
++    udhcpc -b -h $DHCPNAME -r $IP -i eth0 -p /var/run/dhcp.eth0.pid >/dev/null 2>&1 &
++  fi
++  netup=1
++else
++  # dhcp for address
++  MAC=`echo $ARGS | sed 's/.* MAC=//' | sed 's/ .*//' | sed 's/[^0-9a-fA-F:.]//g'`
++  MTU=`echo $ARGS | sed 's/.* MTU=//' | sed 's/ .*//' | sed 's/[^0-9]//g'`
++  ifconfig eth0 hw ether $MAC
++  ifconfig eth0 mtu $MTU
++  vmr_fwdsetup eth0
++  if [ ! -z $PRIVINTF ]; then
++    vmr_fwdadd $PRIVINTF $PRIVIP
++  fi
++  vmr_opendhcp eth0
++
++  dn "Trying to get DHCP lease ..."
++  udhcpc -b -i eth0 -p /var/run/dhcp.eth0.pid >/dev/null 2>&1 &
++  maxrt=20
++  while [ $maxrt -gt 0 ]; do
++    sleep 1
++    ifconfig eth0 | grep 'inet addr:' >/dev/null 2>&1
++    if [ $? -eq 0 ]; then
++      netup=1
++      maxrt=0
++    else
++      echo -n "."
++      maxrt=$(expr $maxrt - 1)
++    fi
++  done
++fi
++
++if [ $netup -eq 0 ]; then
++  echo " FAILED.";echo
++  d "ERROR: Unable to get an IP address."
++  d "Check your DHCP server or configure one manually with ifconfig."
++  d "Remember to start Tor via /etc/init.d/tor start when ready."
++else
++  # set any static ARP entries AFTER DHCP / interface up
++  done=0
++  cidx=1
++  while [ $done -eq 0 ]; do
++    echo $ARGS | grep " ARPENT${cidx}" >/dev/null 2>&1
++    if [ $? -eq 0 ]; then
++      CENT=`echo $ARGS | sed "s/.* ARPENT${cidx}=//" | sed 's/ .*//' | sed 's/[^0-9a-fA-F:.-]//g'`
++      CMAC=`echo $CENT | sed 's/-.*//'`
++      CIP=`echo $CENT | sed 's/.*-//'`
++      vmr_setarp eth0 $CIP $CMAC
++      cidx=`expr $cidx + 1`
++    else
++      done=1
++    fi
++  done
++
++  echo $ARGS | grep ' CALLHDDINIT=' >/dev/null 2>&1
++  if [ $? -eq 0 ]; then
++    HDDINITF=`echo $ARGS | sed 's/.* CALLHDDINIT=//' | sed 's/ .*//'`
++    if [ -f "/home/tor/${HDDINITF}" ]; then
++      HDDINITF="/home/tor/${HDDINITF}"
++    else
++      if [ ! -f "${HDDINITF}" ]; then
++        unset HDDINITF
++      fi
++    fi
++    if [ -f "${HDDINITF}" ]; then
++      echo "done.";echo
++      d "Replacing init(self) with user requested HDD post-init script:"
++      d "   ${HDDINITF}"
++      exec "${HDDINITF}"
++    fi
++  fi
++  echo " done.";echo
++  dn "Starting Tor ... "
++  /etc/init.d/tor start
++  echo "done."
++  echo
++  d "Run /etc/init.d/tor status"
++  d " for bootstrap status."
++fi
++
++# end if !NOINIT
++fi
+diff -Naur a/package/tor/files/vmrouter.sh b/package/tor/files/vmrouter.sh
+--- a/package/tor/files/vmrouter.sh	1970-01-01 00:00:00.000000000 +0000
++++ b/package/tor/files/vmrouter.sh	2009-09-20 12:20:24.704230793 +0000
+@@ -0,0 +1,210 @@
++#!/bin/sh
++# Utility script for Tor VM routing
++# Source or run directly.
++
++if [ -z $CLIENT_BLOCK_TCP_PORTS ]; then
++  CLIENT_BLOCK_TCP_PORTS="445 139 138 137 53 25"
++fi
++if [ -z $TOR_TRANSPORT ]; then
++  TOR_TRANSPORT=9095
++fi
++if [ -z $TOR_DNSPORT ]; then
++  TOR_DNSPORT=9093
++fi
++if [ -z $LOG_TO ]; then
++  LOG_TO=/var/log/vmrouter.log
++fi
++if [ -z $DOLOG ]; then
++  export DOLOG=1
++fi
++if [ $DOLOG -eq 0 ]; then
++  LOG_TO=/dev/null
++fi
++# user defined targets
++if [ -z $trap_tbl ]; then
++  trap_tbl="TRAP"
++fi
++if [ -z $host_filt_tbl ]; then
++  host_filt_tbl="HOSTIN"
++fi
++if [ -z $cli_filt_tbl ]; then
++  cli_filt_tbl="CLIIN"
++fi
++if [ -z $cli_prenat_tbl ]; then
++  cli_prenat_tbl="CLIPRE"
++fi
++if [ -z $cli_postnat_tbl ]; then
++  cli_postnat_tbl="CLIPOST"
++fi
++
++export FAIL=99
++# XXX: right now we don't track error output.
++
++vmr_trapon() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_trapon:">>$LOG_TO 2>&1; fi
++  iptables -t filter -I $trap_tbl -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -I $trap_tbl -p tcp -j TARPIT >>$LOG_TO 2>&1
++}
++
++vmr_trapoff() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_trapoff:">>$LOG_TO 2>&1; fi
++  iptables -t filter --flush $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -I $trap_tbl -j RETURN >>$LOG_TO 2>&1
++}
++
++vmr_init() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_init:">>$LOG_TO 2>&1; fi
++  iptables -t filter --flush INPUT >>$LOG_TO 2>&1
++  iptables -t filter --flush FORWARD >>$LOG_TO 2>&1
++  iptables -t filter --flush OUTPUT >>$LOG_TO 2>&1
++  iptables -t nat --flush PREROUTING >>$LOG_TO 2>&1
++  iptables -t nat --flush POSTROUTING >>$LOG_TO 2>&1
++
++  # default policy drop
++  iptables -t filter -P INPUT DROP >>$LOG_TO 2>&1
++  iptables -t filter -P FORWARD DROP >>$LOG_TO 2>&1
++  iptables -t filter -P OUTPUT DROP >>$LOG_TO 2>&1
++
++  # trap table is the global on/off switch for traffic
++  # use a trap table so that tarpit or drop can be set
++  # as atomic op across input/forward/output.
++  iptables -t filter -N $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -A $trap_tbl -j RETURN >>$LOG_TO 2>&1
++  iptables -t filter -I INPUT -j $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -I FORWARD -j $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -j $trap_tbl >>$LOG_TO 2>&1
++
++  # loopback device is exempt from filtering
++  iptables -t filter -I INPUT -i lo -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -o lo -j ACCEPT >>$LOG_TO 2>&1
++
++  # host filter traffic things to/from the VM
++  iptables -t filter -N $host_filt_tbl >>$LOG_TO 2>&1
++  iptables -t filter -A INPUT -j $host_filt_tbl >>$LOG_TO 2>&1
++  iptables -t filter -A $host_filt_tbl -j RETURN >>$LOG_TO 2>&1
++
++  # client tables for routed traffic
++  iptables -t filter -N $cli_filt_tbl >>$LOG_TO 2>&1
++  iptables -t filter -A $cli_filt_tbl -j RETURN >>$LOG_TO 2>&1
++  iptables -t filter -A FORWARD -j $cli_filt_tbl >>$LOG_TO 2>&1
++  iptables -t nat -N $cli_prenat_tbl >>$LOG_TO 2>&1
++  iptables -t nat -A PREROUTING -j $cli_prenat_tbl >>$LOG_TO 2>&1
++  iptables -t nat -N $cli_postnat_tbl >>$LOG_TO 2>&1
++  iptables -t nat -A POSTROUTING -j $cli_postnat_tbl >>$LOG_TO 2>&1
++}
++
++vmr_logdrop() {
++  # log default drop targets
++  iptables -t filter -A INPUT -j LOG >>$LOG_TO 2>&1
++  iptables -t filter -A FORWARD -j LOG >>$LOG_TO 2>&1
++  iptables -t filter -A OUTPUT -j LOG >>$LOG_TO 2>&1
++}
++
++vmr_fwdsetup() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_fwdsetup:">>$LOG_TO 2>&1; fi
++  # expects default route interface argument
++  if [ -z $1 ]; then
++    return $FAIL
++  fi
++  iptables -t filter -I $cli_filt_tbl -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu >>$LOG_TO 2>&1
++  iptables -t filter -I $cli_filt_tbl -m state --state RELATED,ESTABLISHED -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t filter -I $cli_filt_tbl -m state --state INVALID -j DROP >>$LOG_TO 2>&1
++  for PORTNUM in $CLIENT_BLOCK_TCP_PORTS; do
++    iptables -t filter -I $cli_filt_tbl -p tcp --dport $PORTNUM -j DROP >>$LOG_TO 2>&1
++  done
++  iptables -t nat -I $cli_postnat_tbl -o "$1" -j MASQUERADE >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -m state --state ESTABLISHED,RELATED -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -o "$1" -j ACCEPT >>$LOG_TO 2>&1
++  # reset the trap target at top of chain
++  iptables -t filter -D OUTPUT -j $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -j $trap_tbl >>$LOG_TO 2>&1
++}
++
++vmr_fwdadd() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_fwdadd:">>$LOG_TO 2>&1; fi
++  # expects interface to forward for as argument
++  if [ -z $1 ]; then
++    return $FAIL
++  fi
++  iptables -t nat -A $cli_prenat_tbl -i "$1" -p tcp -d "$2" -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t nat -A $cli_prenat_tbl -i "$1" -p tcp -j REDIRECT --to $TOR_TRANSPORT >>$LOG_TO 2>&1
++  iptables -t nat -A $cli_prenat_tbl -i "$1" -p udp --dport 53 -j REDIRECT --to $TOR_DNSPORT >>$LOG_TO 2>&1
++  iptables -t nat -A $cli_prenat_tbl -i "$1" -p udp -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -p udp ! --dport $TOR_DNSPORT -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -o "$1" -j ACCEPT >>$LOG_TO 2>&1
++  # reset the trap target at top of chain
++  iptables -t filter -D OUTPUT -j $trap_tbl >>$LOG_TO 2>&1
++  iptables -t filter -I OUTPUT -j $trap_tbl >>$LOG_TO 2>&1
++}
++
++vmr_fwddel() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_fwddel:">>$LOG_TO 2>&1; fi
++  # expects interface to forward for as argument
++  if [ -z $1 ]; then
++    return $FAIL
++  fi
++  iptables -t nat -D $cli_prenat_tbl -i "$1" -p tcp -d "$2" -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t nat -D $cli_prenat_tbl -i "$1" -p tcp -j REDIRECT --to $TOR_TRANSPORT >>$LOG_TO 2>&1
++  iptables -t nat -D $cli_prenat_tbl -i "$1" -p udp --dport 53 -j REDIRECT --to $TOR_DNSPORT >>$LOG_TO 2>&1
++  iptables -t nat -D $cli_prenat_tbl -i "$1" -p udp -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -D OUTPUT -o "$1" -j ACCEPT >>$LOG_TO 2>&1
++}
++
++vmr_opendhcp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_opendhcp:">>$LOG_TO 2>&1; fi
++  # expects dhcp interface as argument
++  if [ -z $1 ]; then
++    return $FAIL
++  fi
++  iptables -t filter -I $host_filt_tbl -i "$1" -p udp --dport 67:68 --sport 67:68 -j ACCEPT >>$LOG_TO 2>&1
++}
++
++vmr_opentcp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_opentcp:">>$LOG_TO 2>&1; fi
++  iptables -t filter -D $host_filt_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j ACCEPT >>$LOG_TO 2>&1
++}
++
++vmr_openudp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_openudp:">>$LOG_TO 2>&1; fi
++  iptables -t filter -D $host_filt_tbl -i "$1" -d "$2" -p udp --dport "$3" -j DROP >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -d "$2" -p udp --dport "$3" -j ACCEPT >>$LOG_TO 2>&1
++}
++
++vmr_closetcp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_closetcp:">>$LOG_TO 2>&1; fi
++  iptables -t filter -D $host_filt_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j DROP >>$LOG_TO 2>&1
++}
++
++vmr_closeudp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_closeudp:">>$LOG_TO 2>&1; fi
++  iptables -t filter -D $host_filt_tbl -i "$1" -d "$2" -p udp --dport "$3" -j ACCEPT >>$LOG_TO 2>&1
++  iptables -t filter -I $host_filt_tbl -i "$1" -d "$2" -p udp --dport "$3" -j DROP >>$LOG_TO 2>&1
++}
++
++vmr_redirtcp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_redirtcp:">>$LOG_TO 2>&1; fi
++  iptables -t nat -A $cli_prenat_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j REDIRECT --to "$4" >>$LOG_TO 2>&1
++}
++
++vmr_undirtcp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_undirtcp:">>$LOG_TO 2>&1; fi
++  iptables -t nat -D $cli_prenat_tbl -i "$1" -d "$2" -p tcp --dport "$3" -j REDIRECT --to "$4" >>$LOG_TO 2>&1
++}
++
++vmr_setarp() {
++  if [ $DOLOG -eq 1 ]; then echo "vmr_setarp:">>$LOG_TO 2>&1; fi
++  # expects interface, ip, mac arguments
++  if [ -z $1 ]; then
++    return $FAIL
++  fi
++  if [ -z $2 ]; then
++    return $FAIL
++  fi
++  if [ -z $3 ]; then
++    return $FAIL
++  fi
++  arp -i "$1" -s "$2" "$3" >>$LOG_TO 2>&1
++}
++

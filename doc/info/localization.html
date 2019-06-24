@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>MSI Package Localizations</title><meta name="generator" content="DocBook XSL Stylesheets V1.68.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="localization"></a>MSI Package Localizations</h1></div><div><div class="author"><h3 class="author"><span class="firstname">Martin</span> <span class="surname">Peck</span></h3><div class="affiliation"><div class="address"><p><code class="email">&lt;<a href="mailto:coderman at gmail dot com">coderman at gmail dot com</a>&gt;</code></p></div></div></div></div><div><p class="copyright">Copyright © 2009 The Tor Project, Inc.</p></div><div><p class="pubdate">March 10, 2009</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#id2486682">1. Introduction</a></span></dt><dd><dl><dt><span class="sect2"><a href="#langs">1.1. Supported Package Languages</a></span></dt><dt><span class="sect2"><a href="#transxlate">1.2. Supported Translation Transforms</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2465324">2. Localized Installer Interfaces</a></span></dt><dd><dl><dt><span class="sect2"><a href="#instdialogs">2.1. Example TRANSFORMS</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2457362">3. Legal Notice</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2486682"></a>1. Introduction</h2></div></div></div><p>
+The Microsoft Installer packages are available in a number of localized translations.
+ To specify a specific localization or language use the TRANSFORMS property when invoking
+ msiexec to install.
+  </p><p>
+<a href="https://translation.torproject.org/projects/vidaliainstaller/" target="_top">See the Tor Project Translation site for additional information</a>.
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="langs"></a>1.1. Supported Package Languages</h3></div></div></div><div class="literallayout"><p><br />
+en, cs, de, es, fa, fi, fr, he, it, nl, pl, pt, ro, ru, sv<br />
+   </p></div><p>
+Ex. torvm-de.msi
+   </p><div class="literallayout"><p><br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="transxlate"></a>1.2. Supported Translation Transforms</h3></div></div></div><div class="literallayout"><p><br />
+TRANSFORMS=:en (default codepage)<br />
+TRANSFORMS=:cs<br />
+TRANSFORMS=:de<br />
+TRANSFORMS=:es<br />
+TRANSFORMS=:fa<br />
+TRANSFORMS=:fi<br />
+TRANSFORMS=:fr<br />
+TRANSFORMS=:he<br />
+TRANSFORMS=:it<br />
+TRANSFORMS=:nl<br />
+TRANSFORMS=:pl<br />
+TRANSFORMS=:pt<br />
+TRANSFORMS=:ro<br />
+TRANSFORMS=:ru<br />
+TRANSFORMS=:sv<br />
+   </p></div></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2465324"></a>2. Localized Installer Interfaces</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="instdialogs"></a>2.1. Example TRANSFORMS</h3></div></div></div><p>
+msiexec /i vidalia-intl.msi TRANSFORMS=:pl
+     </p><div class="mediaobject"><img src="img/vidalia-pl.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+   <br />
+   </p></div><p>
+msiexec /i tor-intl.msi TRANSFORMS=:de
+     </p><div class="mediaobject"><img src="img/tor-de.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+msiexec /i thandy-intl.msi TRANSFORMS=:ru
+     </p><div class="mediaobject"><img src="img/thandy-ru.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+msiexec /i polipo-intl.msi TRANSFORMS=:fr
+     </p><div class="mediaobject"><img src="img/polipo-fr.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+msiexec /i torbutton-intl.msi TRANSFORMS=:es
+     </p><div class="mediaobject"><img src="img/torbutton-es.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2457362"></a>3. Legal Notice</h2></div></div></div><p>
+You may distribute or modify this document according to the terms of the <a href="http://www.gnu.org/licenses/fdl-1.2.txt" target="_top">GNU Free Documentation License Version 1.2 or later</a>.
+  </p><p>
+"<span class="trademark">Tor</span>® is a registered trademark of The Tor Project, Inc."
+  </p><p>
+"<span class="trademark">Windows</span>® is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </p></div></div></body></html>

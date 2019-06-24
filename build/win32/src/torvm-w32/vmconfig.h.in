@@ -1,0 +1,23 @@
+/* Copyright (C) 2008  The Tor Project, Inc.
+ * See LICENSE file for rights and terms.
+ */
+#ifndef __vmconfig_h__
+#define __vmconfig_h__
+
+/* by default temporarily disable driver signature checking to install tap
+ * adapter without the pointless unsigned driver prompt.
+ */
+#ifndef _DISABLE_DRIVER_SIGCHECK
+#define _DISABLE_DRIVER_SIGCHECK
+#endif
+
+/* set default network configuration parameters for host and vm
+ */
+#ifndef _DEFAULT_TAP_ADDR
+#define _DEFAULT_TAP_ADDR "10.10.10.1/29"
+#endif
+#ifndef _DEFAULT_NULLRT_ADDR
+#define _DEFAULT_NULLRT_ADDR "10.231.254.1/31"
+#endif
+
+#endif /* vmconfig_h */

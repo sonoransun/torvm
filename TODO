@@ -1,0 +1,87 @@
+
+           TO-DO list for Tor VM software and packages
+
+Legend:
+  - Not done
+  . Partially done
+  o Done
+  ? Deferrable
+  X Deferred
+ *  Top priority
+_______________________________________________________________________
+
+ * Update documentation
+   . Update Kyle's build documents at janusvm with new bundle details
+     and commit to Tor VM svn.
+   . Finish rest of this TODO file :)
+   . Add in pending changes, chapters to design document.
+
+   Update upstream package support in build infrastructure
+   . Integrate autotools / autoconf support so build scripts are less
+     completely kludged together.
+
+   Update build automation docs and hooks
+   ? Replace build all script with component based Makefiles with
+     proper dependency checking and conditional build support.
+
+   Update Tor VM release packages
+   ? Add support for run-as service configuration during install.
+   ? Add support for SteadyState friendly configuration (registry).
+   ? Keep as few Thandy package files on disk as possible after an
+     upgrade. Ideally no more than two packages of the same product
+     would be kept.
+   ? Improve package removal to iterate through products and remove
+     by name rather than MSI file or product GUID; include rollback
+     capability for situations where upgraded packages fail.
+
+   Tor VM kernel networking improvements
+   - Collaborate with ioerror on making the iptables rules in torwall
+     compatible with Tor VM (and other implementations) to avoid
+     duplication and oversights where possible.
+   ? Implement ability to configure routes across multiple interfaces
+     for power user or dynamic installations.
+
+   Tor VM controller implementation clean up
+   . Complete registry helpers for searching / cleaning registry
+     entries created by tap and pcap devices.
+   - Fix detection of default route when multiple gateways are present
+     and route metric must be used to distinguish properly.
+   - Make addresses, devices, and other configuration dynamic for Tor
+     VM kernel and Vidalia controller.
+   - Implement command line parameter parsing for the configurable
+     parameters implemented in the afore mentioned tasks.
+   - Pass ARP parameters to VM kernel for faster IP setup.
+
+   Tor VM controller hardening
+   ? Integrate with SteadyState via registry backed configuration and
+     provide deployment configuration scripts.
+   ? Take advantage of fine grained authorization and permissions in
+     Vista, Server 2008, and Windows 7.
+   . Use CryptoAPI to gather entropy in host and pass to VM on command
+     line for use in stronger seeding of first-run kernel random pool.
+
+   Vidalia integration
+   - Implement random control port password generation and delivery to
+     Tor VM kernel and Vidalia using standard input file handles.
+   - Implement external Tor based bundle support in a proper manner
+     for upstream merge into Vidalia tree. This would include minor
+     UI changes associated with Tor run external to Vidalia, and even
+     multiple instances of Tor on the same host. (dedicated relay VM
+     and dedicated client VM with traffic prioritization in kernel.)
+   - Support local Tor config file for use with Vidalia settings that
+     is communicated to the Tor instance(s) in the VM. The list of
+     parameters which may be set must be filtered against a whitelist
+     to avoid risks associated with arbitrary config replacement
+     before hand off to the VM Tor instances.
+
+   General topics requiring further investigation and documentation
+     [ see design document in ./doc/design.html ]
+   ? Native 64bit apps and TAP device.
+   ? Custom filtering and/or shaping by port and protocol.
+   ? Multiple process model hardening.
+   ? TorButton sans toggle in bundle.
+   ? PortableFirefox in bundle.
+   ? Multiple VM networking.
+   ? Authenticated VM images.
+   ? STUN (rfc5389) nat busting in VM.
+

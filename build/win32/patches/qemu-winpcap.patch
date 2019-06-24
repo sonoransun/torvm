@@ -1,0 +1,420 @@
+diff -Naur a/Makefile.target b/Makefile.target
+--- a/Makefile.target	2009-05-20 20:46:58.000000000 +0000
++++ b/Makefile.target	2009-08-19 10:12:57.009455378 +0000
+@@ -119,7 +119,7 @@
+ CPPFLAGS+=-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+ LIBS+=-lm
+ ifdef CONFIG_WIN32
+-LIBS+=-lwinmm -lws2_32 -liphlpapi
++LIBS+=-lwinmm -lws2_32 -liphlpapi -lpthreadGC2 -ltorpkt -ltorpcap
+ endif
+ ifdef CONFIG_SOLARIS
+ LIBS+=-lsocket -lnsl -lresolv
+diff -Naur a/configure b/configure
+--- a/configure	2009-05-20 20:46:58.000000000 +0000
++++ b/configure	2009-08-20 05:03:53.073452974 +0000
+@@ -462,7 +462,9 @@
+ 
+ # default flags for all hosts
+ CFLAGS="$CFLAGS -O2 -g -fno-strict-aliasing"
+-CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
++# XXX: tons of warning on mingw32
++# CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls"
++CFLAGS="$CFLAGS -Wall -Wundef -Wendif-labels -Wwrite-strings -Wstrict-prototypes"
+ LDFLAGS="$LDFLAGS -g"
+ if test "$werror" = "yes" ; then
+ CFLAGS="$CFLAGS -Werror"
+@@ -774,7 +776,7 @@
+ #undef main /* We don't want SDL to override our main() */
+ int main( void ) { return SDL_Init (SDL_INIT_VIDEO); }
+ EOF
+-    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC `$sdl_config --libs 2> /dev/null` > $TMPSDLLOG 2>&1 ; then
++    if $cc $ARCH_CFLAGS -o $TMPE ${OS_CFLAGS} ${CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC ${LDFLAGS} `$sdl_config --libs 2> /dev/null` > $TMPSDLLOG 2>&1 ; then
+         _sdlversion=`$sdl_config --version | sed 's/[^0-9]//g'`
+         if test "$_sdlversion" -lt 121 ; then
+             sdl_too_old=yes
+@@ -786,16 +788,7 @@
+ 
+         # static link with sdl ?
+         if test "$sdl" = "yes" ; then
+-            aa="no"
+-            `$sdl_config --static-libs 2>/dev/null | grep \\\-laa > /dev/null` && aa="yes"
+-            sdl_static_libs=`$sdl_config --static-libs 2>/dev/null`
+-            if [ "$aa" = "yes" ] ; then
+-                sdl_static_libs="$sdl_static_libs `aalib-config --static-libs`"
+-            fi
+-
+-            if $cc -o $TMPE ${OS_CFLAGS} `$sdl_config --cflags 2> /dev/null` $TMPC $sdl_static_libs > /dev/null 2> /dev/null; then
+-                sdl_static=yes
+-            fi
++           sdl_static=no
+         fi # static link
+     fi # sdl compile test
+ else
+@@ -1035,7 +1028,8 @@
+ EOF
+   if $cc $ARCH_CFLAGS -o $TMPE $AIOLIBS $TMPC 2> /dev/null ; then
+     aio=yes
+-    AIOLIBS="-lpthread"
++    # XXX: on mingw32 we specify our own pthread lib
++    # AIOLIBS="-lpthread"
+   fi
+ fi
+ 
+@@ -1353,6 +1347,9 @@
+ if test "$slirp" = "yes" ; then
+   echo "CONFIG_SLIRP=yes" >> $config_mak
+   echo "#define CONFIG_SLIRP 1" >> $config_h
++  echo "CONFIG_PCAP=yes" >> $config_mak
++  echo "PCAP_LIBS=-lpthreadGC2 -lpacket -lwpcap" >> $config_mak
++  echo "#define CONFIG_PCAP 1" >> $config_h
+ fi
+ if test "$vde" = "yes" ; then
+   echo "CONFIG_VDE=yes" >> $config_mak
+diff -Naur a/dyngen-exec.h b/dyngen-exec.h
+--- a/dyngen-exec.h	2009-05-20 20:46:58.000000000 +0000
++++ b/dyngen-exec.h	2009-08-20 05:30:09.493456510 +0000
+@@ -35,6 +35,7 @@
+ #ifdef __OpenBSD__
+ #include <sys/types.h>
+ #else
++#ifndef __MINGW32__
+ typedef unsigned char uint8_t;
+ typedef unsigned short uint16_t;
+ typedef unsigned int uint32_t;
+@@ -46,8 +47,10 @@
+ #else
+ typedef unsigned long long uint64_t;
+ #endif
++#endif /* __MINGW32__ */
+ #endif
+ 
++#ifndef __MINGW32__
+ /* if Solaris/__sun__, don't typedef int8_t, as it will be typedef'd
+    prior to this and will cause an error in compliation, conflicting
+    with /usr/include/sys/int_types.h, line 75 */
+@@ -65,10 +68,12 @@
+ #endif
+ #endif
+ #endif
++#endif /* __MINGW32__ */
+ 
+ /* XXX: This may be wrong for 64-bit ILP32 hosts.  */
+ typedef void * host_reg_t;
+ 
++#ifndef __MINGW32__
+ #define INT8_MIN		(-128)
+ #define INT16_MIN		(-32767-1)
+ #define INT32_MIN		(-2147483647-1)
+@@ -81,6 +86,7 @@
+ #define UINT16_MAX		(65535)
+ #define UINT32_MAX		(4294967295U)
+ #define UINT64_MAX		((uint64_t)(18446744073709551615))
++#endif /* __MINGW32__ */
+ 
+ #ifdef _BSD
+ typedef struct __sFILE FILE;
+diff -Naur a/net.c b/net.c
+--- a/net.c	2009-05-20 20:46:59.000000000 +0000
++++ b/net.c	2009-09-14 06:18:23.292244586 +0000
+@@ -1043,6 +1043,262 @@
+ 
+ #endif /* !_WIN32 */
+ 
++#ifdef CONFIG_PCAP
++#define HAVE_U_INT8_T
++#define HAVE_U_INT16_T
++#define HAVE_U_INT32_T
++#define HAVE_U_INT64_T
++#include <pcap.h>
++#include <string.h>
++char pcap_devicename[64];
++
++#if defined(_WIN32)
++/* pcap-stdinc.h wants to define inline itself... */
++#undef inline
++#include <winreg.h>
++#endif
++
++#include <pthread.h>
++
++static VLANClientState *pcap_vc;
++pcap_t* pcaphandle;
++static void pcap_receive(void *opaque, const uint8_t *buf, int size);
++void eth_callback(u_char *user, const struct pcap_pkthdr *phdr, const u_char *pdata);
++void *pcap_send(void *threadid);
++int eth_open(char* name);
++
++#define ADAPTER_KEY "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
++#define NETWORK_CONNECTIONS_KEY "SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
++#define DEVICE_PREFIX "\\Device\\TORNPF_"
++#define NETGUIDLEN 38
++
++static int get_net_device_guid(
++    char *name,
++    int name_size,
++    char *actual_name,
++    int actual_name_size)
++{
++    LONG status;
++    HKEY control_net_key;
++    DWORD len;
++    int i = 0;
++    int stop = 0;
++
++    status = RegOpenKeyEx(
++        HKEY_LOCAL_MACHINE,
++        NETWORK_CONNECTIONS_KEY,
++        0,
++        KEY_READ,
++        &control_net_key);
++
++    if (status != ERROR_SUCCESS) {
++        return -1;
++    }
++
++    while (!stop)
++    {
++        char enum_name[256];
++        char connection_string[256];
++        HKEY connection_key;
++        char name_data[256];
++        DWORD name_type;
++        const char name_string[] = "Name";
++
++        len = sizeof (enum_name);
++        status = RegEnumKeyEx(
++            control_net_key,
++            i,
++            enum_name,
++            &len,
++            NULL,
++            NULL,
++            NULL,
++            NULL);
++
++        if (status == ERROR_NO_MORE_ITEMS)
++            break;
++        else if (status != ERROR_SUCCESS) {
++            return -1;
++        }
++
++        snprintf(connection_string,
++             sizeof(connection_string),
++             "%s\\%s\\Connection",
++             NETWORK_CONNECTIONS_KEY, enum_name);
++
++        status = RegOpenKeyEx(
++            HKEY_LOCAL_MACHINE,
++            connection_string,
++            0,
++            KEY_READ,
++            &connection_key);
++
++        if (status == ERROR_SUCCESS) {
++            len = sizeof (name_data);
++            status = RegQueryValueEx(
++                connection_key,
++                name_string,
++                NULL,
++                &name_type,
++                name_data,
++                &len);
++
++            if (status != ERROR_SUCCESS || name_type != REG_SZ) {
++                    return -1;
++            }
++            else {
++                if (actual_name) {
++                    if (strcmp(name, name_data) != 0) {
++                        fprintf(stderr, "pcap: %s does not match requested %s (guid: %s)\n", name, name_data, enum_name);
++                        RegCloseKey (connection_key);
++                        ++i;
++                        continue;
++                    }
++                    else {
++                        snprintf(actual_name, actual_name_size, "%s%s", DEVICE_PREFIX, enum_name);
++                        fprintf(stderr, "pcap: matched requested %s to guid: %s\n\tpcap open devname: %s", name_data, enum_name, actual_name);
++                    }
++                }
++                stop = 1;
++            }
++
++            RegCloseKey (connection_key);
++        }
++        ++i;
++    }
++
++    RegCloseKey (control_net_key);
++
++    if (stop == 0)
++        return -1;
++
++    return 0;
++}
++
++static int net_pcap_init(VLANState *vlan)
++{
++    pcap_vc = qemu_new_vlan_client(vlan, "pcap redirector", "pcap", pcap_receive, NULL, NULL, NULL);
++    snprintf(pcap_vc->info_str,sizeof(pcap_vc->info_str),"pcap redirector");
++    char dev_guid[256];
++    *dev_guid = 0;
++
++    /* we don't have strnlen??? */
++    pcap_devicename[sizeof(pcap_devicename)-1] = 0;
++
++    /* accept passing a GUID instead of name, which is more precise.  there is a known
++     * issue with disabled adapters sharing names of active ones leading to open failure.
++     */
++    if ( (strlen(pcap_devicename) == NETGUIDLEN) && (*pcap_devicename == '{') ) {
++        snprintf(dev_guid, sizeof(dev_guid), "%s%s", DEVICE_PREFIX, pcap_devicename);
++        /* fprintf(stderr, "qemu: pcap bridge using explicit device guid: %s\n", dev_guid); */
++    }
++    else {
++        if (get_net_device_guid (pcap_devicename, sizeof(pcap_devicename), dev_guid, sizeof(dev_guid))) {
++            fprintf(stderr, "qemu: could not set up pcap bridge to alias: %s\n", pcap_devicename);
++            exit(1);
++        }
++    }
++    /* either this works or we exit. don't bother with retval */
++    eth_open(dev_guid);
++
++    pthread_attr_t attr;
++    pthread_t threads;
++    int rc;
++    rc=pthread_create (&threads,NULL,pcap_send,NULL);
++    pthread_attr_destroy(&attr);
++    return 0;
++}
++
++static void pcap_receive(void *opaque, const uint8_t *buf, int size)
++{
++    pcap_sendpacket((pcap_t*)pcaphandle, (u_char*)buf, size);
++}
++
++void *pcap_send(void *threadid)
++{
++    struct timeval timeout;
++    timeout.tv_sec = 0;
++    timeout.tv_usec = 200*1000;
++    int status;
++
++    while(pcaphandle)
++    {
++        fd_set setl;
++        FD_ZERO(&setl);
++        status = pcap_dispatch((pcap_t*)pcaphandle, 1, &eth_callback, NULL);
++    }
++    return NULL;
++}
++
++void eth_callback(u_char *user, const struct pcap_pkthdr *phdr, const u_char *pdata)
++{
++    if(phdr->len)
++    {
++        qemu_send_packet(pcap_vc, pdata, phdr->len);
++    }
++}
++
++/* bad winpcap api only sets these when remote-pcap is enabled. */
++#define PCAP_OPENFLAG_PROMISCUOUS 1
++#define PCAP_OPENFLAG_NOCAPTURE_LOCAL 8
++/* #define PCAP_READ_TIMEOUT 15  use no timeout for faster responsiveness. */
++#define PCAP_READ_TIMEOUT 1
++
++int eth_open(char* name)
++{
++    const int bufsz = 65535;
++    char errbuf[PCAP_ERRBUF_SIZE];
++    char* msg;
++
++    /* attempt to connect device */
++    memset(errbuf, 0, sizeof(errbuf));
++    pcaphandle = (void*) pcap_open_live(name,
++                                        bufsz,
++                                        PCAP_OPENFLAG_PROMISCUOUS | PCAP_OPENFLAG_NOCAPTURE_LOCAL,
++                                        PCAP_READ_TIMEOUT,
++                                        errbuf);
++    if (!pcaphandle) { /* try non-promisc open device */
++        pcaphandle = (void*) pcap_open_live(name,
++                                            bufsz,
++                                            PCAP_OPENFLAG_NOCAPTURE_LOCAL,
++                                            PCAP_READ_TIMEOUT,
++                                            errbuf);
++        if (!pcaphandle) { /* cannot open device */
++            msg = "Eth: pcap_open_live error for device %s - %s\r\n";
++            fprintf (stderr, msg, name, errbuf);
++            exit (1);
++        }
++        msg = "Eth: opened non-promisc %s\r\n";
++        /* fprintf (stderr, msg, name); */
++    } else {
++        msg = "Eth: opened promisc %s\r\n";
++        /* fprintf (stderr, msg, name); */
++    }
++
++#if defined (USE_READER_THREAD)
++    {
++        pthread_attr_t attr;
++
++        ethq_init (&dev->read_queue, 200); /* initialize FIFO queue */
++        pthread_mutex_init (&dev->lock, NULL);
++        pthread_attr_init(&attr);
++        pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
++        pthread_create (&dev->reader_thread, &attr, _pcap_send, (void *)dev);
++        pthread_attr_destroy(&attr);
++    }
++#else /* !defined (USE_READER_THREAD) */
++#ifdef USE_SETNONBLOCK
++    /* set ethernet device non-blocking so pcap_dispatch() doesn't hang */
++    if (pcap_setnonblock (pcaphandle, 1, errbuf) == -1) {
++        msg = "Eth: Failed to set non-blocking: %s\r\n";
++        printf (msg, errbuf);
++    }
++#endif
++#endif /* !defined (USE_READER_THREAD) */
++    return 0;
++}
++#endif //CONFIG_PCAP
++
+ #if defined(CONFIG_VDE)
+ typedef struct VDEState {
+     VLANClientState *vc;
+@@ -1752,6 +2008,14 @@
+         }
+     } else
+ #endif
++#ifdef CONFIG_PCAP
++    if (!strcmp(device, "pcap")) {
++       if (get_param_value(buf, sizeof(buf), "devicename", p) > 0) {
++           pstrcpy(pcap_devicename,sizeof(pcap_devicename),buf);
++       }
++       ret = net_pcap_init(vlan);
++    } else
++#endif
+     if (!strcmp(device, "socket")) {
+         if (get_param_value(buf, sizeof(buf), "fd", p) > 0) {
+             int fd;
+@@ -1828,6 +2092,9 @@
+ #ifdef CONFIG_VDE
+                                        ,"vde"
+ #endif
++#ifdef CONFIG_PCAP
++                                       ,"pcap"
++#endif
+     };
+     for (i = 0; i < sizeof(valid_param_list) / sizeof(char *); i++) {
+         if (!strncmp(valid_param_list[i], device,
+diff -Naur a/vl.c b/vl.c
+--- a/vl.c	2009-05-20 20:47:01.000000000 +0000
++++ b/vl.c	2009-08-19 10:38:17.093454551 +0000
+@@ -3995,6 +3995,9 @@
+            "                use '[down]script=no' to disable script execution;\n"
+            "                use 'fd=h' to connect to an already opened TAP interface\n"
+ #endif
++#ifdef CONFIG_PCAP
++           "-net pcap[,vlan=n],devicename=name\n"
++#endif
+            "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
+            "                connect the vlan 'n' to another VLAN using a socket connection\n"
+            "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port]\n"

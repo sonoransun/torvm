@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Setting Windows Timezone To GMT</title><meta name="generator" content="DocBook XSL Stylesheets V1.68.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="timezone"></a>Setting Windows Timezone To GMT</h1></div><div><div class="author"><h3 class="author"><span class="firstname">Martin</span> <span class="surname">Peck</span></h3><div class="affiliation"><div class="address"><p><code class="email">&lt;<a href="mailto:coderman at gmail dot com">coderman at gmail dot com</a>&gt;</code></p></div></div></div></div><div><p class="copyright">Copyright © 2009 The Tor Project, Inc.</p></div><div><p class="pubdate">March 10, 2009</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#id2486682">1. Introduction</a></span></dt><dd><dl><dt><span class="sect2"><a href="#leastprivs">1.1. Masking Timezone</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2465274">2. Adjust Timezone</a></span></dt><dd><dl><dt><span class="sect2"><a href="#X">2.1. Adjust Timezone As Admin</a></span></dt><dt><span class="sect2"><a href="#usertimezone">2.2. Confirm Limited User Timezone</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2457346">3. Legal Notice</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2486682"></a>1. Introduction</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="leastprivs"></a>1.1. Masking Timezone</h3></div></div></div><p>
+It is often desirable to mask the local timezone configured on the Windows host.
+ The signifigance of risk for timezone leakage is difficult to quantify; using the GMT timezone
+ without any daylight savings adjustment provides the least amount of information and is
+ recommended.
+   </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2465274"></a>2. Adjust Timezone</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="X"></a>2.1. Adjust Timezone As Admin</h3></div></div></div><p>
+Right click on the clock dock icon and select the "Adjust Date/Time" option.
+     </p><div class="mediaobject"><img src="img/tz01.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Time zone settings are on the second tab.
+     </p><div class="mediaobject"><img src="img/tz02.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Select the "GMT Greenwich Mean Time" timezone.
+     </p><div class="mediaobject"><img src="img/tz03.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Disable daylight savings time adjustment if necessary.
+     </p><div class="mediaobject"><img src="img/tz04.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Select "Apply" option to make timezone changes take effect.
+     </p><div class="mediaobject"><img src="img/tz05.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="usertimezone"></a>2.2. Confirm Limited User Timezone</h3></div></div></div><p>
+Now any software running on the limited user account will only be able to read localtime in GMT.
+     </p><div class="mediaobject"><img src="img/tz06.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2457346"></a>3. Legal Notice</h2></div></div></div><p>
+You may distribute or modify this document according to the terms of the <a href="http://www.gnu.org/licenses/fdl-1.2.txt" target="_top">GNU Free Documentation License Version 1.2 or later</a>.
+  </p><p>
+"<span class="trademark">Tor</span>® is a registered trademark of The Tor Project, Inc."
+  </p><p>
+"<span class="trademark">Windows</span>® is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </p></div></div></body></html>

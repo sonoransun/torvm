@@ -1,0 +1,3018 @@
+diff -Naur a/package/base-files/Makefile b/package/base-files/Makefile
+--- a/package/base-files/Makefile	2009-05-23 21:16:04.068729000 +0000
++++ b/package/base-files/Makefile	2009-05-31 22:58:21.180748579 +0000
+@@ -40,11 +40,6 @@
+   TITLE:=Base filesystem for OpenWrt
+   URL:=http://openwrt.org/
+   VERSION:=$(PKG_RELEASE)-$(REVISION)
+-  $(call Config,network.lan.proto,string,static,LAN Protocol)
+-  $(call Config,network.lan.ipaddr,ip,192.168.1.1,LAN IP Address)
+-  $(call Config,network.lan.netmask,netmask,255.255.255.0,LAN Network Mask)
+-  $(call Config,network.lan.gateway,ip,,LAN Gateway)
+-  $(call Config,network.lan.dns,ip,,LAN DNS server)
+ endef
+ 
+ define Package/base-files$(TARGET)/conffiles
+@@ -175,8 +170,6 @@
+ 	mkdir -p $(1)/CONTROL
+ 	mkdir -p $(1)/dev
+ 	mkdir -p $(1)/etc/crontabs
+-	mkdir -p $(1)/jffs
+-	mkdir -p $(1)/lib/firmware
+ 	$(if $(LIB_SUFFIX),ln -s lib $(1)/lib$(LIB_SUFFIX))
+ 	mkdir -p $(1)/mnt
+ 	mkdir -p $(1)/proc
+@@ -185,7 +178,6 @@
+ 	$(if $(LIB_SUFFIX),ln -s lib $(1)/usr/lib$(LIB_SUFFIX))
+ 	mkdir -p $(1)/usr/bin
+ 	mkdir -p $(1)/sys
+-	mkdir -p $(1)/www
+ 	mkdir -p $(1)/root
+ 	ln -sf /proc/mounts $(1)/etc/mtab
+ 	rm -f $(1)/var
+diff -Naur a/package/base-files/files/bin/entropy-update.sh b/package/base-files/files/bin/entropy-update.sh
+--- a/package/base-files/files/bin/entropy-update.sh	1970-01-01 00:00:00.000000000 +0000
++++ b/package/base-files/files/bin/entropy-update.sh	2009-02-01 09:29:53.330466000 +0000
+@@ -0,0 +1,7 @@
++#!/bin/sh
++rndfile="$1"
++while true; do
++  head -c 512 /dev/urandom > "$rndfile" 2>&1
++  chmod 600 "$rndfile" >/dev/null 2>&1
++  sleep 60 >/dev/null 2>&1
++done
+diff -Naur a/package/base-files/files/bin/firstboot b/package/base-files/files/bin/firstboot
+--- a/package/base-files/files/bin/firstboot	2009-04-17 14:09:46.037367000 +0000
++++ b/package/base-files/files/bin/firstboot	1970-01-01 00:00:00.000000000 +0000
+@@ -1,125 +0,0 @@
+-#!/bin/sh
+-. /etc/functions.sh
+-
+-partname="rootfs_data"
+-mtdpart="$(find_mtd_part $partname)"
+-
+-rom=$(awk '/squashfs/ {print $2}' /proc/mounts)
+-jffs=$(awk '/jffs2/ {print $2}' /proc/mounts)
+-
+-dupe() { # <new_root> <old_root>
+-	cd $1
+-	echo -n "creating directories... "
+-	{
+-		cd $2 
+-		find . -xdev -type d
+-		echo "./dev ./jffs ./mnt ./proc ./tmp"
+-		# xdev skips mounted directories
+-		cd $1 
+-	} | xargs mkdir -p
+-	echo "done"
+-
+-	echo -n "setting up symlinks... "
+-	for file in $(cd $2; find . -xdev -type f;); do
+-		case "$file" in
+-		./rom/note) ;; #nothing
+-		./etc/config*|\
+-		./usr/lib/opkg/info/*) cp -af $2/$file $file;;
+-		*) ln -sf /rom/${file#./*} $file;;
+-		esac
+-	done
+-	for file in $(cd $2; find . -xdev -type l;); do
+-		cp -af $2/${file#./*} $file
+-	done
+-	echo "done"
+-}
+-
+-pivot() { # <new_root> <old_root>
+-	mount -o move /proc $1/proc && \
+-	pivot_root $1 $1$2 && {
+-		mount -o move $2/dev /dev
+-		mount -o move $2/tmp /tmp
+-		mount -o move $2/sys /sys 2>&-
+-		mount -o move $2/jffs /jffs 2>&-
+-		return 0
+-	}
+-}
+-
+-fopivot() { # <rw_root> <ro_root> <dupe?>
+-	root=$1
+-	{
+-		mount -t mini_fo -o base=/,sto=$1 "mini_fo:$1" /mnt 2>&- && root=/mnt
+-	} || {
+-		[ "$3" = "1" ] && {
+-		mount | grep "on $1 type" 2>&- 1>&- || mount -o bind $1 $1
+-		dupe $1 $rom
+-		}
+-	}
+-	pivot $root $2
+-}
+-
+-ramoverlay() {
+-	mkdir -p /tmp/root
+-	fopivot /tmp/root /rom 1
+-}
+-
+-# invoked as an executable
+-[ "${0##*/}" = "firstboot" ] && {
+-
+-	[ -z "$mtdpart" ] && {
+-		echo "MTD partition not found."
+-		exit 1
+-	}
+-
+-	[ -z "$rom" ] && {
+-		echo "You do not have a squashfs partition; aborting"
+-		echo "(firstboot cannot be run on jffs2 based firmwares)"
+-		exit 1
+-	}
+-
+-	[ "$1" = "switch2jffs" ] && {
+-		mount "$mtdpart" /rom/jffs -t jffs2 || exit
+-
+-		# try to avoid fs changing while copying
+-		mount -o remount,ro none / 2>&-
+-
+-		# copy ramoverlay to jffs2
+-		echo -n "copying files ... "
+-		cp -a /tmp/root/* /rom/jffs 2>&-
+-		echo "done"
+-
+-		# switch back to squashfs (temporarily)
+-		# and park the ramdisk ontop of /tmp/root
+-		pivot /rom /mnt
+-		mount -o move /mnt /tmp/root
+-
+-		# /jffs is the overlay
+-		# /rom is the readonly
+-		fopivot /jffs /rom
+-
+-		# try to get rid of /tmp/root
+-		# this will almost always fail
+-		umount /tmp/root 2>&-
+-
+-		exit 0
+-	}
+-
+-	# script run manually
+-	[ \! -z "$jffs" ] && {
+-		echo "firstboot has already been run"
+-		echo "jffs2 partition is mounted, only resetting files"
+-		grep mini_fo /proc/filesystems >&-
+-		[ $? != 0 ] && {
+-			dupe $jffs $rom
+-			exit 0
+-		} || { 
+-			rm -rf $jffs/* 2>&-
+-			mount -o remount $jffs / 2>&-
+-			exit 0
+-		}
+-	}
+-
+-	mtd erase "$partname"
+-	mount "$mtdpart" /jffs -t jffs2
+-	fopivot /jffs /rom 1
+-}
+diff -Naur a/package/base-files/files/bin/ipcalc.sh b/package/base-files/files/bin/ipcalc.sh
+--- a/package/base-files/files/bin/ipcalc.sh	2007-03-17 13:31:13.078736000 +0000
++++ b/package/base-files/files/bin/ipcalc.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,32 +0,0 @@
+-#!/bin/sh
+-
+-awk -f /usr/lib/common.awk -f - $* <<EOF
+-BEGIN {
+-	ipaddr=ip2int(ARGV[1])
+-	netmask=ip2int(ARGV[2])
+-	network=and(ipaddr,netmask)
+-	broadcast=or(network,compl(netmask))
+-	
+-	start=or(network,and(ip2int(ARGV[3]),compl(netmask)))
+-	limit=network+1
+-	if (start<limit) start=limit
+-	
+-	end=start+ARGV[4]
+-	limit=or(network,compl(netmask))-1
+-	if (end>limit) end=limit
+-
+-	print "IP="int2ip(ipaddr)
+-	print "NETMASK="int2ip(netmask)
+-	print "BROADCAST="int2ip(broadcast)
+-	print "NETWORK="int2ip(network)
+-	print "PREFIX="32-bitcount(compl(netmask))
+-	
+-	# range calculations:
+-	# ipcalc <ip> <netmask> <start> <num>
+-	
+-	if (ARGC > 3) {
+-		print "START="int2ip(start)
+-		print "END="int2ip(end-1)
+-	}
+-}
+-EOF
+diff -Naur a/package/base-files/files/bin/login.sh b/package/base-files/files/bin/login.sh
+--- a/package/base-files/files/bin/login.sh	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/bin/login.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,18 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-grep '^root:[^!]' /etc/passwd >&- 2>&-
+-[ "$?" = "0" -a -z "$FAILSAFE" ]  &&  
+-{
+-    echo "Login failed."
+-    exit 0
+-} || {
+-cat << EOF
+- === IMPORTANT ============================
+-  Use 'passwd' to set your login password
+-  this will disable telnet and enable SSH
+- ------------------------------------------
+-EOF
+-}
+-
+-exec /bin/ash --login
+diff -Naur a/package/base-files/files/etc/banner b/package/base-files/files/etc/banner
+--- a/package/base-files/files/etc/banner	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/etc/banner	2009-09-29 14:19:37.728246070 +0000
+@@ -1,10 +1,26 @@
+-  _______                     ________        __
+- |       |.-----.-----.-----.|  |  |  |.----.|  |_
+- |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+- |_______||   __|_____|__|__||________||__|  |____|
+-          |__| W I R E L E S S   F R E E D O M
+- KAMIKAZE (bleeding edge, $R) -------------------
+-  * 10 oz Vodka       Shake well with ice and strain
+-  * 10 oz Triple sec  mixture into 10 shot glasses.
+-  * 10 oz lime juice  Salute!
+- ---------------------------------------------------
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++ Tor Virtual Machine - version 0.0.3
++
+diff -Naur a/package/base-files/files/etc/config/fstab b/package/base-files/files/etc/config/fstab
+--- a/package/base-files/files/etc/config/fstab	2007-09-22 13:47:20.783817000 +0000
++++ b/package/base-files/files/etc/config/fstab	1970-01-01 00:00:00.000000000 +0000
+@@ -1,10 +0,0 @@
+-config mount
+-	option target	/home
+-	option device	/dev/sda1
+-	option fstype	ext3
+-	option options	rw,sync
+-	option enabled	0
+-
+-config swap
+-	option device	/dev/sda2
+-	option enabled	0
+diff -Naur a/package/base-files/files/etc/config/network b/package/base-files/files/etc/config/network
+--- a/package/base-files/files/etc/config/network	2007-10-18 13:20:02.347557000 +0000
++++ b/package/base-files/files/etc/config/network	1970-01-01 00:00:00.000000000 +0000
+@@ -1,14 +0,0 @@
+-# Copyright (C) 2006 OpenWrt.org
+-
+-config interface loopback
+-	option ifname	lo
+-	option proto	static
+-	option ipaddr	127.0.0.1
+-	option netmask	255.0.0.0
+-
+-config interface lan
+-	option ifname	eth0
+-	option type 	bridge
+-	option proto	static
+-	option ipaddr	192.168.1.1
+-	option netmask	255.255.255.0
+diff -Naur a/package/base-files/files/etc/config/system b/package/base-files/files/etc/config/system
+--- a/package/base-files/files/etc/config/system	2008-06-11 19:59:16.494753000 +0000
++++ b/package/base-files/files/etc/config/system	1970-01-01 00:00:00.000000000 +0000
+@@ -1,3 +0,0 @@
+-config system
+-	option hostname	OpenWrt
+-	option timezone	UTC
+diff -Naur a/package/base-files/files/etc/device_table.txt b/package/base-files/files/etc/device_table.txt
+--- a/package/base-files/files/etc/device_table.txt	1970-01-01 00:00:00.000000000 +0000
++++ b/package/base-files/files/etc/device_table.txt	2009-09-05 23:00:56.137449152 +0000
+@@ -0,0 +1,52 @@
++#<name>		<type>	<mode>	<uid>	<gid>	<major>	<minor>	<start>	<inc>	<count>
++#/dev		d	755	0	0	-	-	-	-	-
++#/dev		d	755	0	0	-	-	-	-	-
++/dev/pts	d	755	0	0	-	-	-	-	-
++/dev/loop	b	640	0	0	7	0	0	1	2
++/dev/rtc	c	640	0	0	10	135	-	-	-
++/dev/mtd	c	640	0	0	90	0	0	2	4
++/dev/mtdblock	b	640	0	0	31	0	0	1	4
++/dev/net	d	755	0	0	-	-	-	-	-
++/dev/net/tun	c	660	0	0	10	200	-	-	-
++/dev/hda	b	640	0	0	3	0	0	0	-
++/dev/hda	b	640	0	0	3	1	1	1	15
++/dev/hdb	b	640	0	0	3	64	0	0	-
++/dev/hdb	b	640	0	0	3	65	1	1	15
++/dev/hdc	b	640	0	0	22	0	0	0	-
++/dev/hdc	b	640	0	0	22	1	1	1	15
++/dev/hdd	b	640	0	0	22	64	0	0	-
++/dev/hdd	b	640	0	0	22	65	1	1	15
++/dev/hde	b	640	0	0	33	0	0	0	-
++/dev/hde	b	640	0	0	33	1	1	1	15
++/dev/hdf	b	640	0	0	33	64	0	0	-
++/dev/hdf	b	640	0	0	33	65	1	1	15
++/dev/hdg	b	640	0	0	34	0	0	0	-
++/dev/hdg	b	640	0	0	34	1	1	1	15
++/dev/hdh	b	640	0	0	34	64	0	0	-
++/dev/hdh	b	640	0	0	34	65	1	1	15
++/dev/sda	b	640	0	0	8	0	0	0	-
++/dev/sda	b	640	0	0	8	1	1	1	15
++/dev/sdb	b	640	0	0	8	16	0	0	-
++/dev/sdb	b	640	0	0	8	17	1	1	15
++/dev/sdc	b	640	0	0	8	32	0	0	-
++/dev/sdc	b	640	0	0	8	33	1	1	15
++/dev/sdd	b	640	0	0	8	48	0	0	-
++/dev/sdd	b	640	0	0	8	49	1	1	15
++/dev/sde	b	640	0	0	8	64	0	0	-
++/dev/sde	b	640	0	0	8	65	1	1	15
++/dev/sdf	b	640	0	0	8	80	0	0	-
++/dev/sdf	b	640	0	0	8	81	1	1	15
++/dev/sdg	b	640	0	0	8	96	0	0	-
++/dev/sdg	b	640	0	0	8	97	1	1	15
++/dev/sdh	b	640	0	0	8	112	0	0	-
++/dev/sdh	b	640	0	0	8	113	1	1	15
++/dev/sg	c	640	0	0	21	0	0	1	15
++/dev/scd	b	640	0	0	11	0	0	1	15
++/dev/vda	b	640	0	0	254	0	0	0	-
++/dev/vda	b	640	0	0	254	1	1	1	15
++/dev/vdb	b	640	0	0	254	16	0	0	-
++/dev/vdb	b	640	0	0	254	17	1	1	15
++/dev/vdc	b	640	0	0	254	32	0	0	-
++/dev/vdc	b	640	0	0	254	33	1	1	15
++/dev/vdd	b	640	0	0	254	48	0	0	-
++/dev/vdd	b	640	0	0	254	49	1	1	15
+diff -Naur a/package/base-files/files/etc/diag.sh b/package/base-files/files/etc/diag.sh
+--- a/package/base-files/files/etc/diag.sh	2009-04-30 21:00:57.896294000 +0000
++++ b/package/base-files/files/etc/diag.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,4 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006-2009 OpenWrt.org
+-
+-set_state() { :; }
+diff -Naur a/package/base-files/files/etc/functions.sh b/package/base-files/files/etc/functions.sh
+--- a/package/base-files/files/etc/functions.sh	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/etc/functions.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,269 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-# Copyright (C) 2006 Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
+-
+-alias debug=${DEBUG:-:}
+-alias mount='busybox mount'
+-
+-# newline
+-N="
+-"
+-
+-_C=0
+-NO_EXPORT=1
+-LOAD_STATE=1
+-LIST_SEP=" "
+-
+-hotplug_dev() {
+-	env -i ACTION=$1 INTERFACE=$2 /sbin/hotplug-call net
+-}
+-
+-append() {
+-	local var="$1"
+-	local value="$2"
+-	local sep="${3:- }"
+-	
+-	eval "export ${NO_EXPORT:+-n} -- \"$var=\${$var:+\${$var}\${value:+\$sep}}\$value\""
+-}
+-
+-list_contains() {
+-	local var="$1"
+-	local str="$2"
+-	local val
+-
+-	eval "val=\" \${$var} \""
+-	[ "${val%% $str *}" != "$val" ]
+-}
+-
+-list_remove() {
+-	local var="$1"
+-	local remove="$2"
+-	local val
+-
+-	eval "val=\" \${$var} \""
+-	val1="${val%% $remove *}"
+-	[ "$val1" = "$val" ] && return
+-	val2="${val##* $remove }"
+-	[ "$val2" = "$val" ] && return
+-	val="${val1## } ${val2%% }"
+-	val="${val%% }"
+-	eval "export ${NO_EXPORT:+-n} -- \"$var=\$val\""
+-}
+-
+-config_load() {
+-	[ -n "$IPKG_INSTROOT" ] && return 0
+-	uci_load "$@"
+-}
+-
+-reset_cb() {
+-	config_cb() { return 0; }
+-	option_cb() { return 0; }
+-	list_cb() { return 0; }
+-}
+-reset_cb
+-
+-package() {
+-	return 0
+-}
+-
+-config () {
+-	local cfgtype="$1"
+-	local name="$2"
+-	
+-	export ${NO_EXPORT:+-n} CONFIG_NUM_SECTIONS=$(($CONFIG_NUM_SECTIONS + 1))
+-	name="${name:-cfg$CONFIG_NUM_SECTIONS}"
+-	append CONFIG_SECTIONS "$name"
+-	[ -n "$NO_CALLBACK" ] || config_cb "$cfgtype" "$name"
+-	export ${NO_EXPORT:+-n} CONFIG_SECTION="$name"
+-	export ${NO_EXPORT:+-n} "CONFIG_${CONFIG_SECTION}_TYPE=$cfgtype"
+-}
+-
+-option () {
+-	local varname="$1"; shift
+-	local value="$*"
+-
+-	export ${NO_EXPORT:+-n} "CONFIG_${CONFIG_SECTION}_${varname}=$value"
+-	[ -n "$NO_CALLBACK" ] || option_cb "$varname" "$*"
+-}
+-
+-list() {
+-	local varname="$1"; shift
+-	local value="$*"
+-	local len
+-
+-	config_get len "$CONFIG_SECTION" "${varname}_LENGTH" 
+-	len="$((${len:-0} + 1))"
+-	config_set "$CONFIG_SECTION" "${varname}_ITEM$len" "$value"
+-	config_set "$CONFIG_SECTION" "${varname}_LENGTH" "$len"
+-	append "CONFIG_${CONFIG_SECTION}_${varname}" "$value" "$LIST_SEP"
+-	list_cb "$varname" "$*"
+-}
+-
+-config_rename() {
+-	local OLD="$1"
+-	local NEW="$2"
+-	local oldvar
+-	local newvar
+-	
+-	[ -n "$OLD" -a -n "$NEW" ] || return
+-	for oldvar in `set | grep ^CONFIG_${OLD}_ | \
+-		sed -e 's/\(.*\)=.*$/\1/'` ; do
+-		newvar="CONFIG_${NEW}_${oldvar##CONFIG_${OLD}_}"
+-		eval "export ${NO_EXPORT:+-n} \"$newvar=\${$oldvar}\""
+-		unset "$oldvar"
+-	done
+-	export ${NO_EXPORT:+-n} CONFIG_SECTIONS="$(echo " $CONFIG_SECTIONS " | sed -e "s, $OLD , $NEW ,")"
+-	
+-	[ "$CONFIG_SECTION" = "$OLD" ] && export ${NO_EXPORT:+-n} CONFIG_SECTION="$NEW"
+-}
+-
+-config_unset() {
+-	config_set "$1" "$2" ""
+-}
+-
+-config_clear() {
+-	local SECTION="$1"
+-	local oldvar
+-
+-	list_remove CONFIG_SECTIONS "$SECTION"
+-	export ${NO_EXPORT:+-n} CONFIG_SECTIONS="${SECTION:+$CONFIG_SECTIONS}"
+-
+-	for oldvar in `set | grep ^CONFIG_${SECTION:+${SECTION}_} | \
+-		sed -e 's/\(.*\)=.*$/\1/'` ; do 
+-		unset $oldvar 
+-	done
+-}
+-
+-config_get() {
+-	case "$3" in
+-		"") eval "echo \"\${CONFIG_${1}_${2}}\"";;
+-		*)  eval "export ${NO_EXPORT:+-n} -- \"$1=\${CONFIG_${2}_${3}}\"";;
+-	esac
+-}
+-
+-# config_get_bool <variable> <section> <option> [<default>]
+-config_get_bool() {
+-	local _tmp
+-	config_get "_tmp" "$2" "$3"
+-	case "$_tmp" in
+-		1|on|true|enabled) export ${NO_EXPORT:+-n} "$1=1";;
+-		0|off|false|disabled) export ${NO_EXPORT:+-n} "$1=0";;
+-		*) eval "$1=$4";;
+-	esac
+-}
+-
+-config_set() {
+-	local section="$1"
+-	local option="$2"
+-	local value="$3"
+-	local old_section="$CONFIG_SECTION"
+-
+-	CONFIG_SECTION="$section"
+-	option "$option" "$value"
+-	CONFIG_SECTION="$old_section"
+-}
+-
+-config_foreach() {
+-	local function="$1"
+-	[ "$#" -ge 1 ] && shift
+-	local type="$1"
+-	[ "$#" -ge 1 ] && shift
+-	local section cfgtype
+-	
+-	[ -z "$CONFIG_SECTIONS" ] && return 0
+-	for section in ${CONFIG_SECTIONS}; do
+-		config_get cfgtype "$section" TYPE
+-		[ -n "$type" -a "x$cfgtype" != "x$type" ] && continue
+-		eval "$function \"\$section\" \"\$@\""
+-	done
+-}
+-
+-config_list_foreach() {
+-	[ "$#" -ge 3 ] || return 0
+-	local section="$1"; shift
+-	local option="$1"; shift
+-	local function="$1"; shift
+-	local val
+-	local len
+-	local c=1
+-
+-	config_get len "${section}" "${option}_LENGTH"
+-	[ -z "$len" ] && return 0
+-	while [ $c -le "$len" ]; do
+-		config_get val "${section}" "${option}_ITEM$c"
+-		eval "$function \"\$val\" \"$@\""
+-		c="$(($c + 1))"
+-	done
+-}
+-
+-load_modules() {
+-	[ -d /etc/modules.d ] && {
+-		cd /etc/modules.d
+-		sed 's/^[^#]/insmod &/' $* | ash 2>&- || :
+-	}
+-}
+-
+-include() {
+-	local file
+-	
+-	for file in $(ls $1/*.sh 2>/dev/null); do
+-		. $file
+-	done
+-}
+-
+-find_mtd_part() {
+-	local PART="$(grep "\"$1\"" /proc/mtd | awk -F: '{print $1}')"
+-	local PREFIX=/dev/mtdblock
+-	
+-	PART="${PART##mtd}"
+-	[ -d /dev/mtdblock ] && PREFIX=/dev/mtdblock/
+-	echo "${PART:+$PREFIX$PART}"
+-}
+-
+-strtok() { # <string> { <variable> [<separator>] ... }
+-	local tmp
+-	local val="$1"
+-	local count=0
+-
+-	shift
+-
+-	while [ $# -gt 1 ]; do
+-		tmp="${val%%$2*}"
+-
+-		[ "$tmp" = "$val" ] && break
+-
+-		val="${val#$tmp$2}"
+-
+-		export ${NO_EXPORT:+-n} "$1=$tmp"; count=$((count+1))
+-		shift 2
+-	done
+-
+-	if [ $# -gt 0 -a -n "$val" ]; then
+-		export ${NO_EXPORT:+-n} "$1=$val"; count=$((count+1))
+-	fi
+-
+-	return $count
+-}
+-
+-
+-jffs2_mark_erase() {
+-	local part="$(find_mtd_part "$1")"
+-	[ -z "$part" ] && {
+-		echo Partition not found.
+-		return 1
+-	}
+-	echo -e "\xde\xad\xc0\xde" | mtd -qq write - "$1"
+-}
+-
+-uci_apply_defaults() {(
+-	cd /etc/uci-defaults || return 0
+-	files="$(ls)"
+-	[ -z "$files" ] && return 0
+-	mkdir -p /tmp/.uci
+-	for file in $files; do
+-		( . "./$(basename $file)" ) && rm -f "$file"
+-	done
+-	uci commit
+-)}
+-
+-[ -z "$IPKG_INSTROOT" -a -f /lib/config/uci.sh ] && . /lib/config/uci.sh
+diff -Naur a/package/base-files/files/etc/hotplug.d/block/10-mount b/package/base-files/files/etc/hotplug.d/block/10-mount
+--- a/package/base-files/files/etc/hotplug.d/block/10-mount	2009-01-30 20:48:42.263830000 +0000
++++ b/package/base-files/files/etc/hotplug.d/block/10-mount	1970-01-01 00:00:00.000000000 +0000
+@@ -1,19 +0,0 @@
+-#!/bin/sh
+-
+-# Copyright (C) 2009 OpenWrt.org
+-
+-blkdev=`dirname $DEVPATH`
+-if [ `basename $blkdev` != "block" ]; then
+-
+-    device=`basename $DEVPATH`
+-    case "$ACTION" in
+-	add)
+-		mkdir -p /mnt/$device
+-		mount /dev/$device /mnt/$device
+-		;;
+-	remove)
+-		umount /dev/$device
+-		;;
+-    esac	
+-
+-fi
+diff -Naur a/package/base-files/files/etc/hotplug.d/ieee1394/10-ieee1394 b/package/base-files/files/etc/hotplug.d/ieee1394/10-ieee1394
+--- a/package/base-files/files/etc/hotplug.d/ieee1394/10-ieee1394	2009-01-30 20:48:42.263830000 +0000
++++ b/package/base-files/files/etc/hotplug.d/ieee1394/10-ieee1394	1970-01-01 00:00:00.000000000 +0000
+@@ -1,13 +0,0 @@
+-#!/bin/sh
+-
+-# Copyright (C) 2009 OpenWrt.org
+-
+-case "$ACTION" in
+-	add)
+-		# update LEDs
+-		;;
+-	remove)
+-		# update LEDs
+-		;;
+-esac	
+-		
+diff -Naur a/package/base-files/files/etc/hotplug.d/iface/00-netstate b/package/base-files/files/etc/hotplug.d/iface/00-netstate
+--- a/package/base-files/files/etc/hotplug.d/iface/00-netstate	2008-11-28 16:18:11.345415000 +0000
++++ b/package/base-files/files/etc/hotplug.d/iface/00-netstate	1970-01-01 00:00:00.000000000 +0000
+@@ -1,4 +0,0 @@
+-[ ifup = "$ACTION" ] && {
+-	uci_set_state network "$INTERFACE" up 1 
+-	[ -n "$DEVICE" ] && uci_set_state network "$INTERFACE" ifname "$DEVICE"
+-}
+diff -Naur a/package/base-files/files/etc/hotplug.d/iface/10-routes b/package/base-files/files/etc/hotplug.d/iface/10-routes
+--- a/package/base-files/files/etc/hotplug.d/iface/10-routes	2009-04-19 17:12:02.320805000 +0000
++++ b/package/base-files/files/etc/hotplug.d/iface/10-routes	1970-01-01 00:00:00.000000000 +0000
+@@ -1,74 +0,0 @@
+-add_route() {
+-	local config="$1"
+-
+-	# is this route intended for the
+-	# $INTERFACE of this hotplug event
+-	config_get interface "$config" interface
+-	[ "$interface" != "$INTERFACE" ] && return 0
+-	
+-	# get the real interface name from network config
+-	config_get dev "$interface" ifname
+-
+-	config_get target "$config" target
+-	config_get netmask "$config" netmask
+-	config_get gateway "$config" gateway
+-	config_get metric "$config" metric
+-
+-	# make sure there is a gateway and a target
+-	[ -n "$target" ] || {
+-		echo "Missing target in route section $config"
+-		return 1
+-	}
+-	[ -n "$gateway" ] || {
+-		config_get gateway "$interface" gateway
+-	}
+-
+-	# handle "0.0.0.0" as "no gateway given" to allow
+-	# defining gateway-less routes while still keeping
+-	# the possibility to have static routes with a
+-	# proper gateway on interfaces with dynamic ips 
+-	[ "$gateway" = "0.0.0.0" ] && gateway=""
+-
+-	dest="${netmask:+-net "$target" netmask "$netmask"}"
+-	dest="${dest:--host "$target"}"
+-	
+-	/sbin/route add $dest ${gateway:+gw "$gateway"} \
+-		${dev:+dev "$dev"} ${metric:+ metric "$metric"}
+-}
+-
+-add_route6() {
+-	local config="$1"
+-
+-	# is this route intended for the
+-	# $INTERFACE of this hotplug event
+-	config_get interface "$config" interface
+-	[ "$interface" != "$INTERFACE" ] && return 0
+-	
+-	# get the real interface name from network config
+-	config_get dev "$interface" ifname
+-
+-	config_get target "$config" target
+-	config_get gateway "$config" gateway
+-	config_get metric "$config" metric
+-
+-	# make sure there is a gateway and a target
+-	[ -n "$target" ] || {
+-		echo "Missing target in route section $config"
+-		return 1
+-	}
+-	[ -n "$gateway" ] || {
+-		config_get gateway "$interface" gateway
+-	}
+-
+-	/sbin/route -A inet6 add $target ${gateway:+gw "$gateway"} \
+-		${dev:+dev "$dev"} ${metric:+ metric "$metric"}
+-}
+-
+-case "$ACTION" in
+-	ifup)
+-		include /lib/network
+-		scan_interfaces
+-		config_foreach "add_route" route
+-		config_foreach "add_route6" route6
+-	;;
+-esac
+diff -Naur a/package/base-files/files/etc/hotplug.d/net/10-net b/package/base-files/files/etc/hotplug.d/net/10-net
+--- a/package/base-files/files/etc/hotplug.d/net/10-net	2008-07-30 22:39:56.068770000 +0000
++++ b/package/base-files/files/etc/hotplug.d/net/10-net	1970-01-01 00:00:00.000000000 +0000
+@@ -1,61 +0,0 @@
+-# Copyright (C) 2006 OpenWrt.org
+-
+-include /lib/network
+-
+-addif() {
+-	# PPP devices are configured by pppd, no need to run setup_interface here
+-	case "$INTERFACE" in
+-		ppp*) return 0;;
+-	esac
+-
+-	scan_interfaces
+-	local cfg="$(find_config "$INTERFACE")"
+-
+-	# check the autoload setting
+-	config_get auto "$cfg" auto
+-	case "$auto" in
+-		1|on|enabled) setup_interface "$INTERFACE";;
+-	esac
+-
+-
+-	# find all vlan configurations for this interface and set them up as well
+-	for ifc in $interfaces; do
+-		config_get iftype "$ifc" type
+-		config_get ifs "$ifc" device
+-		for dev in $ifs; do
+-			[ "${dev%%\.*}" = "$INTERFACE" -a "$dev" != "$INTERFACE" ] && {
+-				add_vlan "$dev"
+-			}
+-		done
+-	done
+-}
+-
+-
+-delif() {
+-	scan_interfaces
+-
+-	# find all vlan configurations for this interface and nuke 'em
+-	for ifc in $interfaces; do
+-		config_get iftype "$ifc" type
+-		config_get ifs "$ifc" device
+-		confdevs="$(uci get network.$ifc.ifname)"
+-		for dev in $ifs; do
+-			[ "${dev%%\.*}" = "$INTERFACE" ] && {
+-				list_contains confdevs "$dev" || list_remove ifs "$dev"
+-			}
+-		done
+-		uci_set_state "network" "$ifc" device "$ifs"
+-	done
+-}
+-
+-case "$ACTION" in
+-	add|register)
+-		case "$PHYSDEVDRIVER" in
+-			natsemi) sleep 1;;
+-		esac
+-		addif
+-	;;
+-	remove|unregister)
+-		delif
+-	;;
+-esac
+diff -Naur a/package/base-files/files/etc/hotplug.d/usb/10-usb b/package/base-files/files/etc/hotplug.d/usb/10-usb
+--- a/package/base-files/files/etc/hotplug.d/usb/10-usb	2009-01-30 20:48:42.263830000 +0000
++++ b/package/base-files/files/etc/hotplug.d/usb/10-usb	1970-01-01 00:00:00.000000000 +0000
+@@ -1,13 +0,0 @@
+-#!/bin/sh
+-
+-# Copyright (C) 2009 OpenWrt.org
+-
+-case "$ACTION" in
+-	add)
+-		# update LEDs
+-		;;
+-	remove)
+-		# update LEDs
+-		;;
+-esac	
+-		
+diff -Naur a/package/base-files/files/etc/hotplug2-common.rules b/package/base-files/files/etc/hotplug2-common.rules
+--- a/package/base-files/files/etc/hotplug2-common.rules	2009-03-09 15:06:15.458249000 +0000
++++ b/package/base-files/files/etc/hotplug2-common.rules	1970-01-01 00:00:00.000000000 +0000
+@@ -1,40 +0,0 @@
+-
+-DEVICENAME ~~ (null|full|ptmx|tty|zero|gpio) {
+-	nothrottle
+-	makedev /dev/%DEVICENAME% 0666
+-	next
+-}
+-
+-DEVICENAME ~~ (tun|tap[0-9]) {
+-	nothrottle
+-	makedev /dev/net/%DEVICENAME% 0644
+-	next
+-}
+-
+-DEVICENAME ~~ (ppp) {
+-	nothrottle
+-	makedev /dev/%DEVICENAME% 0600
+-	next
+-}
+-
+-DEVICENAME ~~ (controlC[0-9]|pcmC0D0*|timer) {
+-	nothrottle
+-	makedev /dev/snd/%DEVICENAME% 0644
+-	next
+-}
+-
+-DEVPATH is set, SUBSYSTEM ~~ (input) {
+-	nothrottle
+-	makedev /dev/input/%DEVICENAME% 0644
+-}
+-
+-DEVPATH is set {
+-	nothrottle
+-	makedev /dev/%DEVICENAME% 0644
+-}
+-
+-FIRMWARE is set {
+-	nothrottle
+-	exec /sbin/hotplug-call firmware;
+-	next
+-}
+diff -Naur a/package/base-files/files/etc/hotplug2-init.rules b/package/base-files/files/etc/hotplug2-init.rules
+--- a/package/base-files/files/etc/hotplug2-init.rules	2007-12-01 17:08:04.802538000 +0000
++++ b/package/base-files/files/etc/hotplug2-init.rules	1970-01-01 00:00:00.000000000 +0000
+@@ -1,5 +0,0 @@
+-$include /etc/hotplug2-common.rules
+-
+-SUBSYSTEM ~~ button {
+-	exec kill -USR1 1 ;
+-}
+diff -Naur a/package/base-files/files/etc/init.d/boot b/package/base-files/files/etc/init.d/boot
+--- a/package/base-files/files/etc/init.d/boot	2009-04-30 22:59:18.268466000 +0000
++++ b/package/base-files/files/etc/init.d/boot	1970-01-01 00:00:00.000000000 +0000
+@@ -1,69 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org
+-
+-START=10
+-
+-system_config() {
+-	local cfg="$1"
+-	local hostname
+-	
+-	config_get hostname "$cfg" hostname
+-	echo "${hostname:-OpenWrt}" > /proc/sys/kernel/hostname
+-
+-	config_get conloglevel "$cfg" conloglevel
+-	[ -n "$conloglevel" ] && dmesg -n "$conloglevel"
+-	
+-	config_get timezone "$cfg" timezone 
+-	[ -z "$timezone" ] && timezone=UTC
+-	echo "$timezone" > /tmp/TZ
+-
+-	config_get log_ip "$cfg" log_ip 
+-	config_get log_size "$cfg" log_size
+-	config_get log_port "$cfg" log_port
+-	[ -x /sbin/syslogd ] && syslogd -C${log_size:-16} ${log_ip:+-L -R $log_ip${log_port:+:$log_port}}
+-	[ -x /sbin/klogd ] && klogd
+-}
+-
+-apply_uci_config() {(
+-	include /lib/config
+-	uci_apply_defaults
+-)}
+-
+-start() {
+-	[ -f /proc/mounts ] || /sbin/mount_root
+-	[ -f /proc/jffs2_bbc ] && echo "S" > /proc/jffs2_bbc
+-	[ -f /proc/net/vlan/config ] && vconfig set_name_type DEV_PLUS_VID_NO_PAD
+-
+-	apply_uci_config
+-	config_load system
+-	config_foreach system_config system
+-	
+-	mkdir -p /var/run
+-	mkdir -p /var/log
+-	mkdir -p /var/lock
+-	mkdir -p /var/state
+-	mkdir -p /tmp/.uci
+-	chmod 0700 /tmp/.uci
+-	touch /var/log/wtmp
+-	touch /var/log/lastlog
+-	touch /tmp/resolv.conf.auto
+-	ln -sf /tmp/resolv.conf.auto /tmp/resolv.conf
+-	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
+-
+-	killall -q hotplug2
+-	[ -x /sbin/hotplug2 ] && /sbin/hotplug2 --override --persistent \
+-			--max-children 1 --no-coldplug >/dev/null 2>&1 &
+-
+-	# the coldplugging of network interfaces needs to happen later, so we do it manually here
+-	for iface in $(awk -F: '/:/ {print $1}' /proc/net/dev); do
+-		/usr/bin/env -i ACTION=add INTERFACE="$iface" /sbin/hotplug-call net
+-	done
+-
+-	# create /dev/root if it doesn't exist
+-	[ -e /dev/root ] || {
+-		rootdev=$(awk 'BEGIN { RS=" "; FS="="; } $1 == "root" { print $2 }' < /proc/cmdline)
+-		[ -n "$rootdev" ] && ln -s "$rootdev" /dev/root
+-	}
+-
+-	load_modules /etc/modules.d/*
+-}
+diff -Naur a/package/base-files/files/etc/init.d/done b/package/base-files/files/etc/init.d/done
+--- a/package/base-files/files/etc/init.d/done	2007-05-10 14:37:47.286148000 +0000
++++ b/package/base-files/files/etc/init.d/done	1970-01-01 00:00:00.000000000 +0000
+@@ -1,15 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org
+-
+-START=95
+-boot() {
+-	[ -d /tmp/root ] && {
+-		lock /tmp/.switch2jffs
+-		firstboot switch2jffs
+-		lock -u /tmp/.switch2jffs
+-	}
+-
+-	# set leds to normal state
+-	. /etc/diag.sh
+-	set_state done
+-}
+diff -Naur a/package/base-files/files/etc/init.d/fstab b/package/base-files/files/etc/init.d/fstab
+--- a/package/base-files/files/etc/init.d/fstab	2009-03-07 12:58:08.923945000 +0000
++++ b/package/base-files/files/etc/init.d/fstab	1970-01-01 00:00:00.000000000 +0000
+@@ -1,67 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2007 OpenWrt.org
+-
+-START=20
+-
+-do_mount() {
+-	local cfg="$1"
+-	config_get fstype "$cfg" fstype
+-	fstype="${fstype:-auto}"
+-	config_get options "$cfg" options
+-	options="${options:-rw}"
+-	config_get device "$cfg" device
+-	[ -n "$device" ] || return 0
+-	config_get target "$cfg" target
+-	[ -n "$target" ] || return 0
+-	mkdir -p $target
+-	config_get_bool enabled "$cfg" "enabled" '1'
+-	[ "$enabled" -eq 0 ] && options="noauto,$options"
+-	echo "$device	$target	$fstype	$options	0	0" >> /tmp/fstab
+-}
+-
+-do_swapon() {
+-	local cfg="$1"
+-	config_get device "$cfg" device
+-	[ -n "$device" ] || return 0
+-	config_get_bool enabled "$cfg" "enabled" '1'
+-	[ "$enabled" -gt 0 ] && {
+-		echo "$device	none	swap	${noauto}sw	0	0" >> /tmp/fstab
+-	}
+-}
+-
+-do_unmount() {
+-	local cfg="$1"
+-	config_get target "$cfg" target
+-	[ -n "$target" ] || return 0
+-	config_get_bool enabled "$cfg" "enabled" '1'
+-	[ "$enabled" -gt 0 ] && {
+-		umount $target
+-	}
+-}
+-	
+-do_swapoff() {
+-	local cfg="$1"
+-	config_get device "$cfg" device
+-	[ -n "$device" ] || return 0
+-	config_get_bool enabled "$cfg" "enabled" '1'
+-	[ "$enabled" -gt 0 ] && type swapoff >/dev/null && {
+-		swapoff $device
+-	}
+-}
+-
+-start() {
+-	config_load fstab
+-	echo '# WARNING: this is an auto generated file, please use uci to set static filesystems' > /tmp/fstab
+-	config_foreach do_mount mount
+-	config_foreach do_swapon swap
+-	mount -a
+-	[ -x /sbin/swapon ] && swapon -a
+-}
+-
+-stop() {
+-	config_load fstab
+-	config_foreach do_unmount mount
+-	config_foreach do_swapoff swap
+-	[ -x /sbin/swapoff ] && swapoff -a
+-}
+-
+diff -Naur a/package/base-files/files/etc/init.d/led b/package/base-files/files/etc/init.d/led
+--- a/package/base-files/files/etc/init.d/led	2008-09-13 00:08:39.328720000 +0000
++++ b/package/base-files/files/etc/init.d/led	1970-01-01 00:00:00.000000000 +0000
+@@ -1,52 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# (C) 2008 openwrt.org
+-
+-START=60
+-
+-load_led() {
+-	local name
+-	local sysfs
+-	local trigger
+-	local dev
+-	local mode
+-	local default
+-	local delayon
+-	local delayoff
+-
+-	config_get name $1 name
+-	config_get sysfs $1 sysfs
+-	config_get trigger $1 trigger
+-	config_get dev $1 dev
+-	config_get mode $1 mode
+-	config_get default $1 default
+-	config_get delayon $1 delayon
+-	config_get delayoff $1 delayoff
+-
+-	[ -e /sys/class/leds/${sysfs}/brightness ] && {
+-		logger "setting up led : ${name:-$sysfs}"
+-		[ -n "$default" ] && { 
+-			[ $default -eq 1 ] && 
+-				echo 1 >/sys/class/leds/${sysfs}/brightness 
+-			[ $default -eq 1 ] ||
+-				echo 0 >/sys/class/leds/${sysfs}/brightness
+-		}
+-		[ -z "$trigger" ] && trigger=none
+-		echo $trigger > /sys/class/leds/${sysfs}/trigger
+-		[ "$trigger" == "netdev" -a -n "$dev" ] && {
+-			[ -z "$mode" ] && mode=link
+-			echo $dev > /sys/class/leds/${sysfs}/device_name
+-			echo $mode > /sys/class/leds/${sysfs}/mode
+-		} 
+-		[ "$trigger" == "timer" ] && {
+-			[ -n "$delayon" ] && echo $delayon > /sys/class/leds/${sysfs}/delay_on
+-			[ -n "$delayoff" ] && echo $delayoff > /sys/class/leds/${sysfs}/delay_off
+-		}
+-	}
+-}
+-
+-start() {
+-	[ -e /sys/class/leds/ ] && {
+-		config_load system
+-		config_foreach load_led led
+-	}
+-}
+diff -Naur a/package/base-files/files/etc/init.d/network b/package/base-files/files/etc/init.d/network
+--- a/package/base-files/files/etc/init.d/network	2008-04-15 16:29:49.167688000 +0000
++++ b/package/base-files/files/etc/init.d/network	1970-01-01 00:00:00.000000000 +0000
+@@ -1,33 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org
+-
+-START=40
+-STOP=40
+-
+-boot() {
+-	setup_switch() { return 0; }
+-
+-	include /lib/network
+-	setup_switch
+-	[ -s /etc/config/wireless ] || \
+-		/sbin/wifi detect > /etc/config/wireless
+-	/sbin/wifi up
+-}
+-
+-start() {
+-	ifup -a
+-	/sbin/wifi up
+-}
+-
+-restart() {
+-	setup_switch() { return 0; }
+-	
+-	include /lib/network
+-	setup_switch
+-	ifup -a
+-	/sbin/wifi up
+-}
+-
+-stop() {
+-	ifdown -a
+-}
+diff -Naur a/package/base-files/files/etc/init.d/rcS b/package/base-files/files/etc/init.d/rcS
+--- a/package/base-files/files/etc/init.d/rcS	2009-04-30 22:59:18.268466000 +0000
++++ b/package/base-files/files/etc/init.d/rcS	2009-05-27 03:48:14.757345581 +0000
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ # Copyright (C) 2006 OpenWrt.org
+-
++exit 0
+ run_scripts() {
+ 	for i in /etc/rc.d/$1*; do
+ 		[ -x $i ] && $i $2 2>&1
+diff -Naur a/package/base-files/files/etc/init.d/sysctl b/package/base-files/files/etc/init.d/sysctl
+--- a/package/base-files/files/etc/init.d/sysctl	2007-05-10 10:07:38.965405000 +0000
++++ b/package/base-files/files/etc/init.d/sysctl	1970-01-01 00:00:00.000000000 +0000
+@@ -1,7 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org 
+-
+-START=99
+-start() {
+-	[ -f /etc/sysctl.conf ] && sysctl -p >&-
+-}
+diff -Naur a/package/base-files/files/etc/init.d/umount b/package/base-files/files/etc/init.d/umount
+--- a/package/base-files/files/etc/init.d/umount	2007-05-10 10:45:04.317089000 +0000
++++ b/package/base-files/files/etc/init.d/umount	1970-01-01 00:00:00.000000000 +0000
+@@ -1,8 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org 
+-
+-STOP=99
+-stop() {
+-	sync
+-	umount -a -r
+-}
+diff -Naur a/package/base-files/files/etc/init.d/usb b/package/base-files/files/etc/init.d/usb
+--- a/package/base-files/files/etc/init.d/usb	2007-04-06 16:07:36.852022000 +0000
++++ b/package/base-files/files/etc/init.d/usb	1970-01-01 00:00:00.000000000 +0000
+@@ -1,9 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2006 OpenWrt.org 
+-
+-START=39
+-start() {
+-	[ -d /proc/bus/usb ] && {
+-		/bin/mount -t usbfs none /proc/bus/usb
+-	}		
+-}
+diff -Naur a/package/base-files/files/etc/init.d/watchdog b/package/base-files/files/etc/init.d/watchdog
+--- a/package/base-files/files/etc/init.d/watchdog	2008-04-03 21:01:16.263826000 +0000
++++ b/package/base-files/files/etc/init.d/watchdog	1970-01-01 00:00:00.000000000 +0000
+@@ -1,7 +0,0 @@
+-#!/bin/sh /etc/rc.common
+-# Copyright (C) 2008 OpenWrt.org
+-
+-START=97
+-start() {
+-        [ -c /dev/watchdog ] && watchdog -t 5 /dev/watchdog
+-}
+diff -Naur a/package/base-files/files/etc/inittab b/package/base-files/files/etc/inittab
+--- a/package/base-files/files/etc/inittab	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/etc/inittab	2009-02-01 09:30:27.525268000 +0000
+@@ -1,5 +1,2 @@
+ ::sysinit:/etc/init.d/rcS S boot
+ ::shutdown:/etc/init.d/rcS K stop
+-tts/0::askfirst:/bin/ash --login
+-ttyS0::askfirst:/bin/ash --login
+-tty1::askfirst:/bin/ash --login
+diff -Naur a/package/base-files/files/etc/preinit b/package/base-files/files/etc/preinit
+--- a/package/base-files/files/etc/preinit	2009-04-04 09:35:55.513254000 +0000
++++ b/package/base-files/files/etc/preinit	2009-05-25 23:02:39.761491059 +0000
+@@ -1,5 +1,12 @@
+ #!/bin/sh
+ # Copyright (C) 2006 OpenWrt.org
++
++# bypass default kamikaze init if we're running with Tor VM modifications
++if [ -f /etc/torvminit ]; then
++  chmod +x /etc/torvminit >/dev/null 2>&1
++  . /etc/torvminit
++else
++
+ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+ . /etc/diag.sh
+ 
+@@ -87,3 +94,6 @@
+ 	
+ 	exec /sbin/init
+ fi
++
++# end not Tor VM init
++fi
+diff -Naur a/package/base-files/files/etc/profile b/package/base-files/files/etc/profile
+--- a/package/base-files/files/etc/profile	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/etc/profile	2009-03-16 00:59:14.150729000 +0000
+@@ -4,12 +4,8 @@
+ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+ export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
+ export HOME=${HOME:-/root}
+-export PS1='\u@\h:\w\$ '
++export PS1='\u@Tor_VM:\w\$ '
+ 
+ [ -x /bin/more ] || alias more=less
+ [ -x /usr/bin/vim ] && alias vi=vim || alias vim=vi
+-
+-[ -z "$KSH_VERSION" -o \! -s /etc/mkshrc ] || . /etc/mkshrc
+-
+ [ -x /sbin/arp ] || arp() { cat /proc/net/arp; }
+-[ -z /bin/ldd ] || ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
+diff -Naur a/package/base-files/files/etc/sysctl.conf b/package/base-files/files/etc/sysctl.conf
+--- a/package/base-files/files/etc/sysctl.conf	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/etc/sysctl.conf	2009-05-27 03:51:05.243395728 +0000
+@@ -5,15 +5,15 @@
+ net.ipv4.icmp_echo_ignore_broadcasts=1
+ net.ipv4.icmp_ignore_bogus_error_responses=1
+ net.ipv4.tcp_ecn=1 
+-net.ipv4.tcp_fin_timeout=30
++net.ipv4.tcp_fin_timeout=10
+ net.ipv4.tcp_keepalive_time=120
+-net.ipv4.tcp_syncookies=1
++net.ipv4.tcp_syncookies=0
+ net.ipv4.tcp_timestamps=0
+ net.core.netdev_max_backlog=30
+ net.netfilter.nf_conntrack_checksum=0
+ net.ipv4.netfilter.ip_conntrack_checksum=0
+ net.ipv4.netfilter.ip_conntrack_max=16384
+ net.ipv4.netfilter.ip_conntrack_tcp_timeout_established=3600
+-net.ipv4.netfilter.ip_conntrack_udp_timeout=60
+-net.ipv4.netfilter.ip_conntrack_udp_timeout_stream=180
++net.ipv4.netfilter.ip_conntrack_udp_timeout=300
++net.ipv4.netfilter.ip_conntrack_udp_timeout_stream=600
+ # net.ipv6.conf.all.forwarding=1
+diff -Naur a/package/base-files/files/lib/config/parse_spec.awk b/package/base-files/files/lib/config/parse_spec.awk
+--- a/package/base-files/files/lib/config/parse_spec.awk	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/parse_spec.awk	1970-01-01 00:00:00.000000000 +0000
+@@ -1,255 +0,0 @@
+-# AWK file for parsing uci specification files
+-#
+-# Copyright (C) 2006 by Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+-# General Public License for more details.
+-#
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+-#
+-#
+-# general: unfortunately, the development was done using gawk providing
+-#  a different match() functions than e.g. mawk on debian systems
+-#  - therefore, the script was changed to run on most awk's 
+-#  - even things like [:space:] are not used
+-#
+-# - script  parses the config section definition contained in one 
+-#   specification file
+-# global variables:
+-# * section  - contains the current config section name
+-# * var      - contains the name of the current config option
+-# * type     - contains the type of the current config option
+-# * required - contains the requirements of the current config option
+-# * optional - contains the optional scope of the current config option
+-# * vars[]  - array, contains the name of all config options valid within
+-#	      a certain config section, format: csv
+-#
+-# XXX todo: more than one config option with the same in different section
+-# will clash for the following tables
+-# * types[] - contains the type of a config option
+-# * reqs[]  - contains the requirements of a config option
+-# * opts[]  - contains the optional scope of a config option
+-#
+-BEGIN {
+-	section_count=1
+-	section = ""
+-	simple_types = "int|ip|netmask|string|wep|hostname|mac|port|ports|wpapsk"
+-}
+-
+-# function print_specification
+-# - prints all information about the created tables containing the
+-#   specification 
+-function print_specification() {
+-	for (section in vars) {
+-		printf("%s\n",section);
+-		split(vars[section],arr,",")
+-		for (idx in arr) {
+-			printf("\t%s[%s]",arr[idx],types[section "_" arr[idx]]); 
+-			if (length(reqs[section "_" arr[idx]])) {
+-				if (reqs[section "_" arr[idx]]==1) {
+-					printf(",req");
+-				}else{
+-					printf(", req(%s)", reqs[section "_" arr[idx]]);
+-				}
+-			}
+-			if (length(opts[section "_" arr[idx]])) {
+-				printf(", opt(%s)", opts[section "_" arr[idx]]);
+-			}
+-			printf("\n");
+-		}
+-	}
+-}
+-
+-
+-function reset_option() {
+-	# just set global variables parsed on one line back to defaults
+-	var = ""
+-	type = ""
+-	required = ""
+-	optional = ""
+-	found = 0
+-}
+-
+-function store_option() {
+-	# save all information about a config option parsed from the spec file
+-	# to the relevant tables for future use
+-
+-	# first check minimum requirements for storing information
+-	if (!length(section)) {
+-		print STDERR "line " NR ": section definition missing"
+-		exit 1
+-	}
+-	if (!length(var)) {
+-		print STDERR "line " NR ": invalid config option name"
+-		exit 1
+-	}
+-	if (!length(type)) {
+-		print STDERR "line " NR ": invalid config option type"
+-		exit 1
+-	}
+-
+-	# add config options to the names of options available for this
+-	# section
+-	if (exists[section]!=1) {
+-		section_names[section_count] = section
+-		section_count++
+-		exists[section] = 1
+-		vars[section] = var
+-	} else {
+-		vars[section] = vars[section] "," var
+-	}
+-	
+-	# save the type, the requirements and the optional scope of the 
+-	# config option
+-	types[section "_" var] = type
+-	reqs[section "_" var] = required
+-	opts[section "_" var] = optional
+-}
+-
+-/^declare -x|^export/ { 
+-	sub(/^declare -x /,"")
+-	sub(/^export /,"")
+-	split($0,arr,"=")
+-	val=substr(arr[2],2,length(arr[2])-2)
+-	ENVIRON[arr[1]] = val
+-	next
+-}
+-
+-# main parsing function
+-# this is done in one function block to allow multiple semicolon separated
+-# definitions on one line
+-{
+-	# replace leading/trailing white space
+-	gsub("^[ \t\n]+","");
+-	gsub("[ \t\n]+$","");
+-
+-	# comments are removed
+-	# XXX todo: check for quoted comments??
+-	if (match($0,/[^#]*/)) {
+-		rest=substr($0,RSTART,RLENGTH)
+-	} else {
+-		rest=$0
+-	}
+-
+-	# match the config section "<section> {"
+-	if (match(rest,/^[^ \t\n{]+[ \t\n]*\{/)) {
+-		match(rest,/^[^ \t\n{]+/)
+-		section = substr(rest,RSTART,RLENGTH)
+-		rest=substr($0,RSTART+RLENGTH);
+-		match(rest,/[ \t\n]*\{/)
+-		rest=substr(rest,RSTART+RLENGTH)
+-		# check for array indication
+-		if (match(section,/\[[ \t\n]*\]/)) {
+-			section=substr(section,1,RSTART-1)
+-			multiple[section] = 1
+-		} else {
+-			multiple[section] = 0
+-		}
+-	}
+-
+-	reset_option()
+-
+-	# parse the remaing line as long as there is something to parse
+-	while (rest ~ "[^ \t\n}]+") {
+-		found = 0
+-
+-		# get option name and option type
+-		# first, check for "simple" datatype definitions
+-		if (match(rest,"[^: \t\n]+[ \t\n]*:[ \t\n]*(" \
+-		                        simple_types ")")){
+-			match(rest,"[^: \t\n]+")
+-			var=substr(rest,RSTART,RLENGTH)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,"[ \t\n]*:[ \t\n]*")
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,"(" simple_types ")")
+-			type=substr(rest,RSTART,RLENGTH)
+-			rest = substr(rest,RSTART+RLENGTH)
+-			found = 1
+-		# next, check for enum definitions
+-		} else if (match(rest,/[^: \t\n]+[ \t\n]*:[ \t\n]*enum\([^\)]+\)/ )) {
+-			match(rest,"[^: \t\n]+")
+-			var=substr(rest,RSTART,RLENGTH)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/[ \t\n]*:[ \t\n]*enum\(/)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/[^\)]+/)
+-			type="enum," substr(rest,RSTART,RLENGTH)
+-			rest = substr(rest,RSTART+RLENGTH+1)
+-			found=1
+-		}			
+-
+-		# after the name and the type, 
+-		# get the option requirements/scope
+-		if (match(rest,/[^,]*,[ \t\n]*required\[[^]]+\]/)) {
+-			match(rest,"[^,]*")
+-			save=substr(rest,RSTART,RLENGTH)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/,[ \t\n]*required\[/);
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/[^]]+\]/)
+-			required=substr(rest,RSTART,RLENGTH-1)
+-			save=save substr(rest,RSTART+RLENGTH)
+-			rest=save
+-			found=1
+-		} else if (match(rest,/[^,]*,[ \t\n]*required/)) {
+-			match(rest,"[^,]*")
+-			save=substr(rest,RSTART,RLENGTH)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,",[ \t\n]*required");
+-			rest=substr(rest,RSTART+RLENGTH)
+-			required=1
+-			save=save substr(rest,RSTART+RLENGTH)
+-			rest=save
+-			found=1
+-		}
+-		if (match(rest,/[^,]*,[ \t\n]*optional\[[^]]+\]/)) {
+-			match(rest,"[^,]*")
+-			save=substr(rest,RSTART,RLENGTH)
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/,[ \t\n]*optional\[/);
+-			rest=substr(rest,RSTART+RLENGTH)
+-			match(rest,/[^]]+\]/)
+-			optional=substr(rest,RSTART,RLENGTH-1)
+-			save=save substr(rest,RSTART+RLENGTH)
+-			rest=save
+-			found=1
+-		}
+-	
+-		# if the remaining line contains a semicolon, complete the
+-		# specification of the config options
+-		if (match(rest, "^[ \t\n]*;(.*)")) {
+-			match(rest,"^[ \t\n]*;")
+-			rest=substr(rest,RSTART+RLENGTH)
+-			if (found==1) {
+-				store_option()
+-			}
+-			reset_option()
+-
+-		# if nothing matched on this line, clear the rest
+-		} else if (!found) {
+-			rest = ""
+-		}
+-	}
+-
+-	# after the line is pared, store the configuration option in the
+-	# table if any has been defined
+-	if (length(var)) {
+-		store_option()
+-		reset_option()
+-	}
+-	# close the section if the line contained a closing section bracket, 
+-	# XXX todo: check if this has to be done more intelligent
+-	if ($0 ~ /\}/) {
+-		section=""
+-	}
+-}
+diff -Naur a/package/base-files/files/lib/config/specs/network.spec b/package/base-files/files/lib/config/specs/network.spec
+--- a/package/base-files/files/lib/config/specs/network.spec	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/specs/network.spec	1970-01-01 00:00:00.000000000 +0000
+@@ -1,7 +0,0 @@
+-interface[] {
+-	proto: string, required;
+-	ipaddr: ip, required[proto=static];
+-	netmask: ip, required[proto=static];
+-	gateway: ip;
+-	dns: ip;
+-}
+diff -Naur a/package/base-files/files/lib/config/template.awk b/package/base-files/files/lib/config/template.awk
+--- a/package/base-files/files/lib/config/template.awk	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/template.awk	1970-01-01 00:00:00.000000000 +0000
+@@ -1,42 +0,0 @@
+-# Copyright (C) 2006 OpenWrt.org
+-
+-{
+-	line=$0
+-	gsub(/^[ \t]*/, "")
+-	gsub(/[ \t]*$/, "")
+-}
+-
+-$1 == "@define" {
+-	v[$2] = $3
+-}
+-
+-$1 == "@ifdef" {
+-	if_open = 1
+-	if (v[$2] != "") noprint = 0
+-	else noprint = 1
+-}
+-
+-$1 == "@ifndef" {
+-	if_open = 1
+-	if (v[$2] != "") noprint = 1
+-	else noprint = 0
+-}
+-
+-$1 == "@else" {
+-	if (noprint == 1) noprint = 0
+-	else noprint = 1
+-}
+-
+-($1 !~ /^@[a-zA-Z0-9_]/) && (noprint != 1) {
+-	n=split(line "@@", a, /@@/)
+-	for (i=1; i<=n; i++) {
+-		if ((i % 2) == 1) printf "%s" a[i]
+-		else printf "%s" v[a[i]]
+-	}
+-	print ""
+-}
+-
+-$1 == "@endif" {
+-	if_open = 0
+-	noprint = 0
+-}
+diff -Naur a/package/base-files/files/lib/config/validate.sh b/package/base-files/files/lib/config/validate.sh
+--- a/package/base-files/files/lib/config/validate.sh	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/validate.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,74 +0,0 @@
+-# Shell script defining validating configuration macros
+-#
+-# Copyright (C) 2006 by Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
+-# Copyright (C) 2007 by Felix Fietkau <nbd@openwrt.org>
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+-# General Public License for more details.
+-#
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+-
+-
+-validate_spec() {
+-	export | grep 'CONFIG_' | cat - "$@" | awk \
+-		-f $UCI_ROOT/lib/config/validate_config.awk \
+-		-f $UCI_ROOT/lib/config/parse_spec.awk \
+-		-f $UCI_ROOT/lib/config/validate_spec.awk
+-}
+-
+-validate_config_cb () {
+-	local TYPE
+-	local res=
+-	
+-	[ -n "${CONFIG_SECTION}" ] || return 0
+-	
+-	config_get TYPE ${CONFIG_SECTION} TYPE
+-	[ -n "$TYPE" ] || return 0
+-	
+-	if type validate_${PACKAGE}_${TYPE} >/dev/null 2>&1; then
+-		validate_${PACKAGE}_${TYPE}
+-		res="$?"
+-	else 
+-		if [ -f $UCI_ROOT/lib/config/specs/${PACKAGE}.spec ]; then
+-			# no special defined, use default one
+-			validate_spec $UCI_ROOT/lib/config/specs/${PACKAGE}.spec
+-			res="$?"
+-		fi
+-	fi
+-	
+-	VALIDATE_RES="${VALIDATE_RES:-$res}"
+-}
+-
+-uci_validate() {(
+-	PACKAGE="$1"
+-	FILE="$2"
+-	VALIDATE_RES=
+-
+-	[ -z "${PACKAGE}" ] && {
+-		echo "Error: no package defined"
+-		return 1
+-	}
+-
+-	reset_cb
+-	config_cb() {
+-		validate_config_cb "$@"
+-	}
+-	unset NO_EXPORT
+-	if [ -n "$FILE" ]; then
+-		. "$FILE"
+-		config
+-	else
+-		config_load "$1"
+-	fi
+-
+-	return ${VALIDATE_RES:-0}
+-)}
+diff -Naur a/package/base-files/files/lib/config/validate_config.awk b/package/base-files/files/lib/config/validate_config.awk
+--- a/package/base-files/files/lib/config/validate_config.awk	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/validate_config.awk	1970-01-01 00:00:00.000000000 +0000
+@@ -1,105 +0,0 @@
+-# AWK file for validating uci specification files
+-#
+-# Copyright (C) 2006 by Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+-# General Public License for more details.
+-#
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+-#
+-function is_int(value) {
+-	valid = 1
+-	if (value !~ /^[0-9]*$/) { valid = 0 }
+-	return valid
+-}
+-
+-function is_netmask(value) {
+-	return is_ip(value)
+-}
+-
+-function is_ip(value) {
+-	valid = 1
+-	if ((value != "") && (value !~ /^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$/)) valid = 0
+-	else {
+-		split(value, ipaddr, "\\.")
+-		for (i = 1; i <= 4; i++) {
+-			if ((ipaddr[i] < 0) || (ipaddr[i] > 255)) valid = 0
+-		}
+-	}
+-	return valid
+-}
+-
+-function is_wep(value) {
+-	valid = 1
+-	if (value !~ /^[0-9A-Fa-f]*$/) {
+-		valid = 0
+-	} else if ((length(value) != 0) && (length(value) != 10) && (length(value) != 26)) {
+-		valid = 0
+-	} else if (value ~ /0$/) {
+-		valid = 0
+-	}
+-	return valid
+-}
+-
+-function is_hostname(value) {
+-	valid = 1
+-	if (value !~ /^[0-9a-zA-z\.\-]*$/) {
+-		valid = 0
+-	}
+-	return valid;
+-}
+-
+-function is_string(value) {
+-	return 1;
+-}
+-
+-function is_mac(value) {
+-	valid = 1
+-	if ((value != "") && (value !~ /^[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]$/)) {
+-		valid = 0
+-	}
+-	return valid
+-}
+-
+-function is_port(value) {
+-	valid = 1
+-	if (value !~ /^[0-9]*$/) {
+-		valid = 0
+-	}
+-	return valid
+-}
+-
+-function is_ports(value) {
+-	valid = 1
+-	n = split(value ",", ports, ",")
+-	for (i = 1; i <= n; i++) {
+-		if ((ports[i] !~ /^[0-9]*$/) && (ports[i] !~ /^[0-9][0-9]*-[0-9][0-9]*$/)) {
+-			valid = 0
+-		}
+-	}
+-	return valid
+-}
+-
+-function is_wpapsk(value) {
+-	valid = 1
+-	if (length(value) > 64) {
+-		valid = 0
+-	}
+-	if ((length(value) != 0) && (length(value) < 8)) {
+-		valid = 0
+-	}
+-	if ((length(value) == 64) && (value ~ /[^0-9a-fA-F]/)) {
+-		valid = 0
+-	}
+-	return valid
+-}
+-
+diff -Naur a/package/base-files/files/lib/config/validate_spec.awk b/package/base-files/files/lib/config/validate_spec.awk
+--- a/package/base-files/files/lib/config/validate_spec.awk	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/lib/config/validate_spec.awk	1970-01-01 00:00:00.000000000 +0000
+@@ -1,171 +0,0 @@
+-# AWK file for validating uci specification files
+-#
+-# Copyright (C) 2006 by Fokus Fraunhofer <carsten.tittel@fokus.fraunhofer.de>
+-# Copyright (C) 2007 by Felix Fietkau <nbd@openwrt.org>
+-#
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2 of the License, or
+-# (at your option) any later version.
+-#
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+-# General Public License for more details.
+-#
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+-#
+-#
+-# general: unfortunately, the development was done using gawk providing
+-#  a different match() functions than e.g. mawk on debian systems
+-#  - therefore, the script was changed to run on most awk's 
+-#  - even things like [:space:] are not used
+-#
+-# - script  parses the config section definition contained in one 
+-#   specification file
+-# global variables:
+-# * section  - contains the current config section name
+-# * var      - contains the name of the current config option
+-# * type     - contains the type of the current config option
+-# * required - contains the requirements of the current config option
+-# * optional - contains the optional scope of the current config option
+-# * vars[]  - array, contains the name of all config options valid within
+-#	      a certain config section, format: csv
+-#
+-# XXX todo: more than one config option with the same in different section
+-# will clash for the following tables
+-# * types[] - contains the type of a config option
+-# * reqs[]  - contains the requirements of a config option
+-# * opts[]  - contains the optional scope of a config option
+-#
+-
+-# - check requirement validates, if the config option is required in
+-#   the config section type and if so, if it is defined
+-# - the functions exits with error in case of non-conforming 
+-#   behaviour
+-# XXX todo: use return instead of exit
+-#
+-function check_requirements(vsec,var) {
+-	# check, if config option is required in all cases
+-	if (reqs[vsec "_" var] == 1) {
+-		# option is always required, is it defined?
+-		if (!length(ENVIRON["CONFIG_" vsec "_" var])) {
+-			print STDERR "Error: missing config option " var " in " vsec
+-			exit 1
+-		}
+-
+-	# check, if config option is required only when other options
+-	# have certain values
+-	} else if (length(reqs[vsec "_" var])) {
+-		# - check all requirements, e.g. proto=static,proto=pptp
+-		# - note, that the required flag is tiggered if at least one
+-		#   of the conditions is met
+-		split(reqs[vsec "_" var],arr,",");
+-		for (idx in arr) {
+-			# parse the condition space tolerant
+-			if (!match(arr[idx],"^[ \t\n]*[^ \t\n=]+"\
+-				"[ \t\n]*=.+")) {
+-				print STDERR "Error: invalid requirement "\
+-					"in spec file for " var " : " arr[idx]
+-				exit 1
+-			}
+-			# get the name of the variable
+-			match(arr[idx],"[^ \t\n=]+");
+-			name=substr(arr[idx],RSTART,RLENGTH)
+-			mrest=substr(arr[idx],RSTART+RLENGTH)
+-			# get the spaces
+-			match(mrest,"[ \t\n]*=[ \t\n]*")
+-			val=substr(mrest,RSTART+RLENGTH)
+-			# check the condition
+-			if (ENVIRON["CONFIG_" vsec "_" name] == val) {
+-				# condition is met, check requirement
+-				if (!length(ENVIRON["CONFIG_" vsec "_" var])) {
+-					print STDERR "Error: missing config " \
+-						"option " var " in " vsec 
+-					exit 1
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-# is_valid just returns true(1)/false(0) if the
+-# given value is conform with the type definition 
+-# NOTE: this function needs the type validating function from
+-# validate_config.awk
+-#
+-function is_valid(type,value) {
+-
+-	# the enum type contains a definition of all allowed values as csv
+-	# e.g. enum,alpha,beta,gamma
+-	if (type ~ "enum" ) {
+-		split(type,tarr,",")
+-		for (num in tarr) {
+-			if (num > 0) {
+-				gsub("^[ \t\n]*","",tarr[num]);
+-				gsub("[ \t\n]*$","",tarr[num]);
+-				if (tarr[num] == value) {
+-					return 1
+-				}	
+-			}
+-		}
+-		return 0;
+-	}
+-
+-	# all other types are checked as defined in the former validate.awk
+-	if (type ~ "int") return is_int(value)
+-	if (type ~ "ip" ) return is_ip(value)
+-	if (type ~ "netmask" ) return is_netmask(value)
+-	if (type ~ "string" ) return is_string(value)
+-	if (type ~ "wep" ) return is_wep(value)
+-	if (type ~ "hostname" ) return is_hostname(value)
+-	if (type ~ "mac" ) return is_mac(value)
+-	if (type ~ "port" ) return is_port(value)
+-	if (type ~ "ports" ) return is_ports(value)
+-	if (type ~ "wpapsk" ) return is_wpapsk(value)
+-}
+-
+-# validate_config compares the specification as parsed from the spec file
+-# with the environment variables
+-# CONFIG_SECTION contains the relevant config section name, e.g. wan
+-# CONFIG_<section>_TYPE contains the type of the config, e.g. interface
+-# CONFIG_<section>_<var> contains the value of the config option <var>
+-#
+-function validate_config() {
+-	# get the config section name
+-	vname=ENVIRON["CONFIG_SECTION"]
+-	if (!length(vname)) {
+-		print STDERR "Error: no current configuration"
+-		exit 1
+-	}
+-	# get the config section type
+-	vsec=ENVIRON["CONFIG_" vname "_TYPE"]
+-	if (!length(vsec)) {
+-		print STDERR "Error: section " vsec " not found"
+-		exit 1
+-	}
+-
+-	# loop through all config options specified for this section type
+-	split(vars[vsec],options,",")
+-	for (oidx in options) {
+-		# first, look for all required attributes
+-		var=options[oidx]
+-		check_requirements(vname,var)
+-
+-		# next look at each option and validate it
+-		val=ENVIRON["CONFIG_" vname "_" var]
+-		if (length(val)) {
+-			if (!is_valid(types[vsec "_" var],val)) {
+-				print "Error: type validation error for '" var "' in section '" vname "'"
+-				exit 1
+-			}
+-		}
+-	}
+-}
+-
+-
+-END {
+-	validate_config()
+-}
+diff -Naur a/package/base-files/files/lib/network/config.sh b/package/base-files/files/lib/network/config.sh
+--- a/package/base-files/files/lib/network/config.sh	2009-04-13 00:43:23.929209000 +0000
++++ b/package/base-files/files/lib/network/config.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,309 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-# DEBUG="echo"
+-
+-find_config() {
+-	local iftype device iface ifaces ifn
+-	for ifn in $interfaces; do
+-		config_get iftype "$ifn" type
+-		config_get iface "$ifn" ifname
+-		case "$iftype" in
+-			bridge) config_get ifaces "$ifn" ifnames;;
+-		esac
+-		config_get device "$ifn" device
+-		for ifc in $device $iface $ifaces; do
+-			[ ."$ifc" = ."$1" ] && {
+-				echo "$ifn"
+-				return 0
+-			}
+-		done
+-	done
+-
+-	return 1;
+-}
+-
+-scan_interfaces() {
+-	local cfgfile="$1"
+-	local mode iftype iface ifname device
+-	interfaces=
+-	config_cb() {
+-		case "$1" in
+-			interface)
+-				config_set "$2" auto 1
+-			;;
+-		esac
+-		config_get iftype "$CONFIG_SECTION" TYPE
+-		case "$iftype" in
+-			interface)
+-				config_get proto "$CONFIG_SECTION" proto
+-				append interfaces "$CONFIG_SECTION"
+-				config_get iftype "$CONFIG_SECTION" type
+-				config_get ifname "$CONFIG_SECTION" ifname
+-				config_get device "$CONFIG_SECTION" device
+-				config_set "$CONFIG_SECTION" device "${device:-$ifname}"
+-				case "$iftype" in
+-					bridge)
+-						config_set "$CONFIG_SECTION" ifnames "${device:-$ifname}"
+-						config_set "$CONFIG_SECTION" ifname br-"$CONFIG_SECTION"
+-					;;
+-				esac
+-				( type "scan_$proto" ) >/dev/null 2>/dev/null && eval "scan_$proto '$CONFIG_SECTION'"
+-			;;
+-		esac
+-	}
+-	config_load "${cfgfile:-network}"
+-}
+-
+-add_vlan() {
+-	local vif="${1%\.*}"
+-	
+-	[ "$1" = "$vif" ] || ifconfig "$1" >/dev/null 2>/dev/null || {
+-		ifconfig "$vif" up 2>/dev/null >/dev/null || add_vlan "$vif"
+-		$DEBUG vconfig add "$vif" "${1##*\.}"
+-		return 0
+-	}
+-	return 1
+-}
+-
+-# sort the device list, drop duplicates
+-sort_list() {
+-	local arg="$*"
+-	(
+-		for item in $arg; do
+-			echo "$item"
+-		done
+-	) | sort -u
+-}
+-
+-# Create the interface, if necessary.
+-# Return status 0 indicates that the setup_interface() call should continue
+-# Return status 1 means that everything is set up already.
+-
+-prepare_interface() {
+-	local iface="$1"
+-	local config="$2"
+-	local vifmac="$3"
+-
+-	# if we're called for the bridge interface itself, don't bother trying
+-	# to create any interfaces here. The scripts have already done that, otherwise
+-	# the bridge interface wouldn't exist.
+-	[ "br-$config" = "$iface" -o -e "$iface" ] && return 0;
+-	
+-	ifconfig "$iface" 2>/dev/null >/dev/null && {
+-		# make sure the interface is removed from any existing bridge and deconfigured 
+-		ifconfig "$iface" 0.0.0.0
+-		unbridge "$iface"
+-
+-		# Change interface MAC address if requested
+-		[ -n "$vifmac" ] && {
+-			ifconfig "$iface" down
+-			ifconfig "$iface" hw ether "$vifmac" up
+-		}
+-	}
+-
+-	# Setup VLAN interfaces
+-	add_vlan "$iface" && return 1
+-	ifconfig "$iface" 2>/dev/null >/dev/null || return 0
+-
+-	# Setup bridging
+-	config_get iftype "$config" type
+-	config_get stp "$config" stp
+-	case "$iftype" in
+-		bridge)
+-			[ -x /usr/sbin/brctl ] && {
+-				ifconfig "br-$config" 2>/dev/null >/dev/null && {
+-					local newdevs=
+-
+-					config_get devices "$config" device
+-					for dev in $(sort_list "$devices" "$iface"); do
+-						append newdevs "$dev"
+-					done
+-					uci_set_state network "$config" device "$newdevs"
+-					$DEBUG brctl addif "br-$config" "$iface"
+-					# Bridge existed already. No further processing necesary
+-				} || {
+-					$DEBUG brctl addbr "br-$config"
+-					$DEBUG brctl setfd "br-$config" 0
+-					$DEBUG ifconfig "br-$config" up
+-					$DEBUG brctl addif "br-$config" "$iface"
+-					$DEBUG brctl stp "br-$config" ${stp:-0}
+-					# Creating the bridge here will have triggered a hotplug event, which will
+-					# result in another setup_interface() call, so we simply stop processing
+-					# the current event at this point.
+-				}
+-				ifconfig "$iface" up 2>/dev/null >/dev/null
+-				return 1
+-			}
+-		;;
+-	esac
+-	return 0
+-}
+-
+-set_interface_ifname() {
+-	local config="$1"
+-	local ifname="$2"
+-
+-	config_get device "$1" device
+-	uci_set_state network "$config" ifname "$ifname"
+-	uci_set_state network "$config" device "$device"
+-}
+-
+-setup_interface_none() {
+-	env -i ACTION="ifup" INTERFACE="$2" DEVICE="$1" PROTO=none /sbin/hotplug-call "iface" &
+-}
+-
+-setup_interface_static() {
+-	local iface="$1"
+-	local config="$2"
+-
+-	config_get ipaddr "$config" ipaddr
+-	config_get netmask "$config" netmask
+-	config_get ip6addr "$config" ip6addr
+-	[ -z "$ipaddr" -o -z "$netmask" ] && [ -z "$ip6addr" ] && return 1
+-	
+-	config_get gateway "$config" gateway
+-	config_get ip6gw "$config" ip6gw
+-	config_get dns "$config" dns
+-	config_get bcast "$config" broadcast
+-	
+-	[ -z "$ipaddr" ] || $DEBUG ifconfig "$iface" "$ipaddr" netmask "$netmask" broadcast "${bcast:-+}"
+-	[ -z "$ip6addr" ] || $DEBUG ifconfig "$iface" add "$ip6addr"
+-	[ -z "$gateway" ] || $DEBUG route add default gw "$gateway" dev "$iface"
+-	[ -z "$ip6gw" ] || $DEBUG route -A inet6 add default gw "$ip6gw" dev "$iface"
+-	[ -z "$dns" ] || {
+-		for ns in $dns; do
+-			grep "$ns" /tmp/resolv.conf.auto 2>/dev/null >/dev/null || {
+-				echo "nameserver $ns" >> /tmp/resolv.conf.auto
+-			}
+-		done
+-	}
+-
+-	config_get type "$config" TYPE                                                                               
+-	[ "$type" = "alias" ] && return 0
+-
+-	env -i ACTION="ifup" INTERFACE="$config" DEVICE="$iface" PROTO=static /sbin/hotplug-call "iface" &
+-}
+-
+-setup_interface_alias() {
+-	local config="$1"
+-	local parent="$2"
+-	local iface="$3"
+-
+-	config_get cfg "$config" interface
+-	[ "$parent" == "$cfg" ] || return 0
+-
+-	# alias counter
+-	config_get ctr "$parent" alias_count
+-	ctr="$(($ctr + 1))"
+-	config_set "$parent" alias_count "$ctr"
+-
+-	# alias list
+-	config_get list "$parent" aliases
+-	append list "$config"
+-	config_set "$parent" aliases "$list"
+-
+-	set_interface_ifname "$config" "$iface:$ctr"
+-	config_get proto "$config" proto
+-	case "${proto:-static}" in
+-		static)
+-			setup_interface_static "$iface:$ctr" "$config"
+-		;;
+-		*) 
+-			echo "Unsupported type '$proto' for alias config '$config'"
+-			return 1
+-		;;
+-	esac
+-}
+-
+-setup_interface() {
+-	local iface="$1"
+-	local config="$2"
+-	local vifmac="$4"
+-	local proto
+-	local macaddr
+-
+-	[ -n "$config" ] || {
+-		config=$(find_config "$iface")
+-		[ "$?" = 0 ] || return 1
+-	}
+-	proto="${3:-$(config_get "$config" proto)}"
+-	
+-	prepare_interface "$iface" "$config" "$vifmac" || return 0
+-	
+-	[ "$iface" = "br-$config" ] && {
+-		# need to bring up the bridge and wait a second for 
+-		# it to switch to the 'forwarding' state, otherwise
+-		# it will lose its routes...
+-		ifconfig "$iface" up
+-		sleep 1
+-	}
+-	
+-	# Interface settings
+-	config_get mtu "$config" mtu
+-	config_get macaddr "$config" macaddr
+-	grep "$iface:" /proc/net/dev > /dev/null && \
+-		$DEBUG ifconfig "$iface" down && \
+-		$DEBUG ifconfig "$iface" ${macaddr:+hw ether "$macaddr"} ${mtu:+mtu $mtu} up
+-	set_interface_ifname "$config" "$iface"
+-
+-	pidfile="/var/run/$iface.pid"
+-	case "$proto" in
+-		static)
+-			setup_interface_static "$iface" "$config"
+-		;;
+-		dhcp)
+-			# prevent udhcpc from starting more than once
+-			lock "/var/lock/dhcp-$iface"
+-			pid="$(cat "$pidfile" 2>/dev/null)"
+-			if [ -d "/proc/$pid" ] && grep udhcpc "/proc/${pid}/cmdline" >/dev/null 2>/dev/null; then
+-				lock -u "/var/lock/dhcp-$iface"
+-			else
+-
+-				config_get ipaddr "$config" ipaddr
+-				config_get netmask "$config" netmask
+-				config_get hostname "$config" hostname
+-				config_get proto1 "$config" proto
+-				config_get clientid "$config" clientid
+-
+-				[ -z "$ipaddr" ] || \
+-					$DEBUG ifconfig "$iface" "$ipaddr" ${netmask:+netmask "$netmask"}
+-
+-				# don't stay running in background if dhcp is not the main proto on the interface (e.g. when using pptp)
+-				[ ."$proto1" != ."$proto" ] && dhcpopts="-n -q"
+-				$DEBUG eval udhcpc -t 0 -i "$iface" ${ipaddr:+-r $ipaddr} ${hostname:+-H $hostname} ${clientid:+-c $clientid} -b -p "$pidfile" ${dhcpopts:- -R &}
+-				lock -u "/var/lock/dhcp-$iface"
+-			fi
+-		;;
+-		none)
+-			setup_interface_none "$iface" "$config"
+-		;;
+-		*)
+-			if ( eval "type setup_interface_$proto" ) >/dev/null 2>/dev/null; then
+-				eval "setup_interface_$proto '$iface' '$config' '$proto'" 
+-			else
+-				echo "Interface type $proto not supported."
+-				return 1
+-			fi
+-		;;
+-	esac
+-	config_set "$config" aliases ""
+-	config_set "$config" alias_count 0
+-	config_foreach setup_interface_alias alias "$config" "$iface"
+-	config_get aliases "$config" aliases
+-	[ -z "$aliases" ] || uci_set_state network "$config" aliases "$aliases"
+-}
+-
+-unbridge() {
+-	local dev="$1"
+-	local brdev
+-	
+-	[ -x /usr/sbin/brctl ] || return 0
+-	brctl show | grep "$dev" >/dev/null && {
+-		# interface is still part of a bridge, correct that
+-
+-		for brdev in $(brctl show | awk '$2 ~ /^[0-9].*\./ { print $1 }'); do
+-			brctl delif "$brdev" "$dev" 2>/dev/null >/dev/null
+-		done
+-	}
+-}
+diff -Naur a/package/base-files/files/lib/upgrade/common.sh b/package/base-files/files/lib/upgrade/common.sh
+--- a/package/base-files/files/lib/upgrade/common.sh	2009-05-15 12:10:26.529854000 +0000
++++ b/package/base-files/files/lib/upgrade/common.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,173 +0,0 @@
+-#!/bin/sh
+-
+-RAM_ROOT=/tmp/root
+-
+-ldd() { LD_TRACE_LOADED_OBJECTS=1 $*; }
+-libs() { ldd $* | awk '{print $3}'; }
+-
+-install_file() { # <file> [ <file> ... ]
+-	for file in "$@"; do
+-		dest="$RAM_ROOT/$file"
+-		[ -f $file -a ! -f $dest ] && {
+-			dir="$(dirname $dest)"
+-			mkdir -p "$dir"
+-			cp $file $dest
+-		}
+-	done
+-}
+-
+-install_bin() { # <file> [ <symlink> ... ]
+-	src=$1
+-	files=$1
+-	[ -x "$src" ] && files="$src $(libs $src)"
+-	install_file $files
+-	shift
+-	for link in "$@"; do {
+-		dest="$RAM_ROOT/$link"
+-		dir="$(dirname $dest)"
+-		mkdir -p "$dir"
+-		[ -f "$dest" ] || ln -s $src $dest
+-	}; done
+-}
+-
+-pivot() { # <new_root> <old_root>
+-	mount | grep "on $1 type" 2>&- 1>&- || mount -o bind $1 $1
+-	mkdir -p $1$2 $1/proc $1/dev $1/tmp $1/jffs && \
+-	mount -o move /proc $1/proc && \
+-	pivot_root $1 $1$2 || {
+-        umount $1 $1
+-		return 1
+-	}
+-	mount -o move $2/dev /dev
+-	mount -o move $2/tmp /tmp
+-	mount -o move $2/jffs /jffs 2>&-
+-	return 0
+-}
+-
+-run_ramfs() { # <command> [...]
+-	install_bin /bin/busybox /bin/ash /bin/sh /bin/mount /bin/umount /sbin/pivot_root /usr/bin/wget /sbin/reboot /bin/sync /bin/dd /bin/grep /bin/cp /bin/mv /bin/tar /usr/bin/md5sum "/usr/bin/[" /bin/vi /bin/ls /bin/cat /usr/bin/awk /usr/bin/hexdump /bin/sleep /bin/zcat
+-	install_bin /sbin/mtd
+-	for file in $RAMFS_COPY_BIN; do
+-		install_bin $file
+-	done
+-	install_file /etc/resolv.conf /etc/functions.sh /lib/upgrade/*.sh $RAMFS_COPY_DATA
+-
+-	pivot $RAM_ROOT /mnt || {
+-		echo "Failed to switch over to ramfs. Please reboot."
+-		exit 1
+-	}
+-
+-	mount -o remount,ro /mnt
+-	umount -l /mnt
+-
+-	grep /jffs /proc/mounts > /dev/null && {
+-		mount -o remount,ro /jffs
+-		umount -l /jffs
+-	}
+-
+-	# spawn a new shell from ramdisk to reduce the probability of cache issues
+-	exec /bin/busybox ash -c "$*"
+-}
+-
+-run_hooks() {
+-	local arg="$1"; shift
+-	for func in "$@"; do
+-		eval "$func $arg"
+-	done
+-}
+-
+-ask_bool() {
+-	local default="$1"; shift;
+-	local answer="$default"
+-
+-	[ "$INTERACTIVE" -eq 1 ] && {
+-		case "$default" in
+-			0) echo -n "$* (y/N): ";;
+-			*) echo -n "$* (Y/n): ";;
+-		esac
+-		read answer
+-		case "$answer" in
+-			y*) answer=1;;
+-			n*) answer=0;;
+-			*) answer="$default";;
+-		esac
+-	}
+-	[ "$answer" -gt 0 ]
+-}
+-
+-v() {
+-	[ "$VERBOSE" -ge 1 ] && echo "$@"
+-}
+-
+-rootfs_type() {
+-	mount | awk '($3 ~ /^\/$/) && ($5 !~ /rootfs/) { print $5 }'
+-}
+-
+-get_image() {
+-	local from="$1"
+-	local conc="cat"
+-
+-	[ $GZIPED -eq 1 ] && conc="zcat"
+-
+-	case "$from" in
+-		http://*|ftp://*) wget -O- -q "$from" | "$conc";;
+-		*) cat "$from" | "$conc";;
+-	esac
+-}
+-
+-get_magic_word() {
+-	get_image "$1" | dd bs=2 count=1 2>/dev/null | hexdump -C | awk '$2 { print $2 $3 }'
+-}
+-
+-refresh_mtd_partitions() {
+-	mtd refresh rootfs
+-}
+-
+-jffs2_copy_config() {
+-	if grep rootfs_data /proc/mtd >/dev/null; then
+-		# squashfs+jffs2
+-		mtd -e rootfs_data jffs2write "$CONF_TAR" rootfs_data
+-	else
+-		# jffs2
+-		mtd jffs2write "$CONF_TAR" rootfs
+-	fi
+-}
+-
+-default_do_upgrade() {
+-	if [ "$SAVE_CONFIG" -eq 1 -a -z "$USE_REFRESH" ]; then
+-		get_image "$1" | mtd -j "$CONF_TAR" write - "${PART_NAME:-image}"
+-	else
+-		get_image "$1" | mtd write - "${PART_NAME:-image}"
+-	fi
+-	sync
+-}
+-
+-do_upgrade() {
+-	v "Performing system upgrade..."
+-	if type 'platform_do_upgrade' >/dev/null 2>/dev/null; then
+-		platform_do_upgrade "$ARGV"
+-	else
+-		default_do_upgrade "$ARGV"
+-	fi
+-	
+-	[ "$SAVE_CONFIG" -eq 1 -a -n "$USE_REFRESH" ] && {
+-		v "Refreshing partitions"
+-		if type 'platform_refresh_partitions' >/dev/null 2>/dev/null; then
+-			platform_refresh_partitions
+-		else
+-			refresh_mtd_partitions
+-		fi
+-		if type 'platform_copy_config' >/dev/null 2>/dev/null; then
+-			platform_copy_config
+-		else
+-			jffs2_copy_config
+-		fi
+-	}
+-	v "Upgrade completed"
+-	[ -n "$DELAY" ] && sleep "$DELAY"
+-	ask_bool 1 "Reboot" && {
+-		v "Rebooting system..."
+-		echo b 2>/dev/null >/proc/sysrq-trigger
+-		reboot
+-	}
+-}
+diff -Naur a/package/base-files/files/rom/note b/package/base-files/files/rom/note
+--- a/package/base-files/files/rom/note	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/rom/note	1970-01-01 00:00:00.000000000 +0000
+@@ -1,3 +0,0 @@
+-SQUASHFS USERS:
+-After firstboot has been run, / will be jffs2 and /rom will be squashfs
+-(* except when in failsafe)
+diff -Naur a/package/base-files/files/sbin/hotplug-call b/package/base-files/files/sbin/hotplug-call
+--- a/package/base-files/files/sbin/hotplug-call	2007-06-15 16:07:09.574671000 +0000
++++ b/package/base-files/files/sbin/hotplug-call	1970-01-01 00:00:00.000000000 +0000
+@@ -1,28 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-export HOTPLUG_TYPE="$1"
+-
+-# bypass the normal hotplug path for firmware loading
+-# would otherwise cause problems with drivers like bcm43xx
+-[ "firmware" = "$HOTPLUG_TYPE" -a "add" = "$ACTION" ] && {
+-	[ -f "/lib/firmware/$FIRMWARE" ] && {
+-		echo 1 > "/sys$DEVPATH/loading"
+-		cp "/lib/firmware/$FIRMWARE" "/sys$DEVPATH/data"
+-		echo 0 > "/sys$DEVPATH/loading"
+-	}
+-	exit 0
+-}
+-
+-. /etc/functions.sh
+-
+-PATH=/bin:/sbin:/usr/bin:/usr/sbin
+-LOGNAME=root
+-USER=root
+-export PATH LOGNAME USER
+-
+-[ \! -z "$1" -a -d /etc/hotplug.d/$1 ] && {
+-	for script in $(ls /etc/hotplug.d/$1/* 2>&-); do (
+-		[ -f $script ] && . $script
+-	); done
+-}
+diff -Naur a/package/base-files/files/sbin/ifdown b/package/base-files/files/sbin/ifdown
+--- a/package/base-files/files/sbin/ifdown	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/sbin/ifdown	1970-01-01 00:00:00.000000000 +0000
+@@ -1,72 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-. /etc/functions.sh
+-[ $# = 0 ] && { echo "  $0 <group>"; exit; }
+-[ "x$1" = "x-a" ] && {
+-	[ -e "/tmp/resolv.conf.auto" ] && rm /tmp/resolv.conf.auto
+-	config_cb() {
+-		[ interface != "$1" -o -z "$2" ] || eval "$0 $2"
+-	}
+-	config_load network
+-	exit
+-}
+-
+-include /lib/network
+-scan_interfaces
+-
+-cfg=$1
+-debug "### ifdown $cfg ###"
+-
+-config_get proto "$cfg" proto
+-[ -z "$proto" ] && { echo "interface not found."; exit; }
+-
+-config_get iface "$cfg" device
+-[ "static" = "$proto" ] && {
+-	env -i ACTION="ifdown" INTERFACE="$cfg" DEVICE="$iface" PROTO=static /sbin/hotplug-call "iface" &
+-}
+-
+-# call interface stop handler
+-( type "stop_interface_$proto" ) >/dev/null 2>/dev/null && eval "stop_interface_$proto '$cfg'"
+-
+-# make sure all locks are removed
+-for lock in "/var/lock/dhcp-$iface" "/var/lock/ppp-$iface"; do
+-	[ -f "$lock" ] && {
+-		lock -u "$lock"
+-		sleep 1
+-	}
+-done
+-
+-# kill active ppp daemon and other processes
+-config_get ifname "$cfg" ifname
+-pids="$(head -n1 -q /var/run/${ifname}.pid /var/run/ppp-${cfg}.pid 2>/dev/null)"
+-for pid in $pids; do 
+-	[ -d "/proc/$pid" ] && {
+-		kill $pid
+-		[ -d "/proc/$pid" ] && {
+-			sleep 1
+-			kill -9 $pid 2>/dev/null >/dev/null
+-		}
+-	}
+-done
+-rm -f /var/run/${ifname}.pid /var/run/ppp-${cfg}.pid
+-
+-config_get ifname "$cfg" ifname
+-config_get device "$cfg" device
+-
+-[ ."$device" != ."$ifname" ] || device=
+-for dev in $ifname $device; do
+-	ifconfig "$dev" 0.0.0.0 down >/dev/null 2>/dev/null
+-done
+-
+-config_get iftype "$cfg" type
+-[ "bridge" = "$iftype" ] && brctl delbr "$ifname" >/dev/null 2>/dev/null
+-
+-# remove the interface's network state
+-uci_revert_state network "$1"
+-
+-# revert aliases state as well
+-config_get aliases "$1" aliases
+-for config in $aliases; do
+-	uci_revert_state network "$config"
+-done
+diff -Naur a/package/base-files/files/sbin/ifup b/package/base-files/files/sbin/ifup
+--- a/package/base-files/files/sbin/ifup	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/sbin/ifup	1970-01-01 00:00:00.000000000 +0000
+@@ -1,23 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-/sbin/ifdown "$@"
+-
+-. /etc/functions.sh
+-[ $# = 0 ] && { echo "  $0 <group>"; exit; }
+-[ "x$1" = "x-a" ] && {
+-	[ -e "/tmp/resolv.conf.auto" ] && rm /tmp/resolv.conf.auto
+-	config_cb() {
+-		[ interface != "$1" -o -z "$2" ] || eval "$0 $2"
+-	}
+-	config_load network
+-	exit
+-}
+-
+-include /lib/network
+-scan_interfaces
+-
+-config_get ifname "$1" device
+-for dev in $ifname; do
+-	setup_interface "$dev" "$1"
+-done
+diff -Naur a/package/base-files/files/sbin/led.sh b/package/base-files/files/sbin/led.sh
+--- a/package/base-files/files/sbin/led.sh	2008-09-13 00:08:39.328720000 +0000
++++ b/package/base-files/files/sbin/led.sh	1970-01-01 00:00:00.000000000 +0000
+@@ -1,25 +0,0 @@
+-#!/bin/sh
+-# (C) 2008 openwrt.org
+-
+-. /etc/functions.sh
+-ACTION=$1
+-NAME=$2
+-do_led() {
+-	local name
+-	local sysfs
+-	config_get name $1 name
+-	config_get sysfs $1 sysfs
+-	[ "$name" == "$NAME" -o "$sysfs" = "$NAME" -a -e "/sys/class/leds/${sysfs}" ] && {
+-		[ "$ACTION" == "set" ] &&
+-			echo 1 >/sys/class/leds/${sysfs}/brightness \
+-			|| echo 0 >/sys/class/leds/${sysfs}/brightness
+-		exit 0
+-	}
+-}
+-
+-[ "$1" == "clear" -o "$1" == "set" ] &&
+-	[ -n "$2" ] &&{
+-		config_load system
+-		config_foreach do_led
+-		exit 1
+-	}
+diff -Naur a/package/base-files/files/sbin/mount_root b/package/base-files/files/sbin/mount_root
+--- a/package/base-files/files/sbin/mount_root	2009-04-17 14:32:29.989894000 +0000
++++ b/package/base-files/files/sbin/mount_root	1970-01-01 00:00:00.000000000 +0000
+@@ -1,25 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-. /etc/functions.sh
+-
+-jffs2_ready () {
+-	mtdpart="$(find_mtd_part rootfs_data)"
+-	magic=$(hexdump $mtdpart -n 4 -e '4/1 "%02x"')
+-	[ "$magic" != "deadc0de" ]
+-}
+-
+-grep rootfs_data /proc/mtd >/dev/null 2>/dev/null && {
+-	. /bin/firstboot
+-	mtd unlock rootfs_data
+-	jffs2_ready && {
+-		echo "switching to jffs2"
+-		mount "$(find_mtd_part rootfs_data)" /jffs -t jffs2 && \
+-			fopivot /jffs /rom
+-	} || {
+-		echo "jffs2 not ready yet; using ramdisk"
+-		ramoverlay
+-	}
+-} || {
+-	mtd unlock rootfs
+-	mount -o remount,rw /dev/root /
+-}
+diff -Naur a/package/base-files/files/sbin/sysupgrade b/package/base-files/files/sbin/sysupgrade
+--- a/package/base-files/files/sbin/sysupgrade	2009-05-17 11:54:44.741219000 +0000
++++ b/package/base-files/files/sbin/sysupgrade	1970-01-01 00:00:00.000000000 +0000
+@@ -1,117 +0,0 @@
+-#!/bin/sh
+-. /etc/functions.sh
+-
+-# initialize defaults
+-RAMFS_COPY_BIN=""	# extra programs for temporary ramfs root
+-RAMFS_COPY_DATA=""	# extra data files
+-export INTERACTIVE=0
+-export VERBOSE=1
+-export SAVE_CONFIG=1
+-export DELAY=
+-export CONF_IMAGE=
+-export GZIPED=0
+-# parse options
+-while [ -n "$1" ]; do 
+-	case "$1" in
+-		-i) export INTERACTIVE=1;;
+-		-d) export DELAY="$2"; shift;;
+-		-v) export VERBOSE="$(($VERBOSE + 1))";;
+-		-q) export VERBOSE="$(($VERBOSE - 1))";;
+-		-n) export SAVE_CONFIG=0;;
+-		-f) export CONF_IMAGE="$2"; shift;;
+-		-g) export GZIPED=1;;
+-		-*)
+-			echo "Invalid option: $1"
+-			exit 1
+-		;;
+-		*) break;;
+-	esac
+-	shift;
+-done
+-
+-export CONFFILES=/tmp/sysupgrade.conffiles
+-export CONF_TAR=/tmp/sysupgrade.tgz
+-
+-export ARGV="$*"
+-export ARGC="$#"
+-
+-[ -z "$ARGV" ] && {
+-	cat <<EOF
+-Usage: $0 [options] <image file or URL>
+-
+-Options:
+-	-d <delay>   add a delay before rebooting
+-	-f <config>  restore configuration from .tar.gz (file or url)
+-	-g           gziped image
+-	-i           interactive mode
+-	-n	     do not save configuration over reflash
+-	-q           less verbose
+-	-v           more verbose
+-
+-EOF
+-	exit 1
+-}
+-
+-add_uci_conffiles() {
+-	local file="$1"
+-	find /etc/config /etc/passwd /etc/group /etc/dropbear /etc/firewall.user > "$file"
+-	return 0
+-}
+-
+-# hooks
+-sysupgrade_image_check="platform_check_image"
+-sysupgrade_init_conffiles="add_uci_conffiles"
+-
+-include /lib/upgrade
+-
+-do_save_conffiles() {
+-	[ -z "$(rootfs_type)" ] && {
+-		echo "Cannot save config while running from ramdisk."
+-		ask_bool 0 "Abort" && exit
+-		return 0
+-	}
+-	run_hooks "$CONFFILES" $sysupgrade_init_conffiles
+-	ask_bool 0 "Edit config file list" && vi "$CONFFILES"
+-
+-	v "Saving config files..."
+-	[ "$VERBOSE" -gt 1 ] && TAR_V="v" || TAR_V=""
+-	tar c${TAR_V}zf "$CONF_TAR" -T "$CONFFILES" 2>/dev/null
+-}
+-
+-type platform_check_image >/dev/null 2>/dev/null || {
+-	echo "Firmware upgrade is not implemented for this platform."
+-	exit 1
+-}
+-
+-for check in $sysupgrade_image_check; do
+-	( eval "$check \"\$ARGV\"" ) || {
+-		echo "Image check '$check' failed."
+-		exit 1
+-	}
+-done
+-
+-if [ -n "$CONF_IMAGE" ]; then
+-	case "$(get_magic_word "$CONF_IMAGE")" in
+-		# .gz files
+-		1f8b) ;;
+-		*)
+-			echo "Invalid config file. Please use only .tar.gz files"
+-			exit 1
+-		;;
+-	esac
+-	get_image "$CONF_IMAGE" > "$CONF_TAR"
+-	export SAVE_CONFIG=1
+-elif ask_bool $SAVE_CONFIG "Keep config files over reflash"; then
+-	do_save_conffiles
+-	export SAVE_CONFIG=1
+-else
+-	export SAVE_CONFIG=0
+-fi
+-run_hooks "" $sysupgrade_pre_upgrade
+-
+-if [ -n "$(rootfs_type)" ]; then
+-	v "Switching to ramdisk..."
+-	run_ramfs '. /etc/functions.sh; include /lib/upgrade; do_upgrade'
+-else
+-	do_upgrade
+-fi
+diff -Naur a/package/base-files/files/sbin/wifi b/package/base-files/files/sbin/wifi
+--- a/package/base-files/files/sbin/wifi	2009-04-09 20:16:01.208626000 +0000
++++ b/package/base-files/files/sbin/wifi	1970-01-01 00:00:00.000000000 +0000
+@@ -1,160 +0,0 @@
+-#!/bin/sh
+-# Copyright (C) 2006 OpenWrt.org
+-
+-. /etc/functions.sh
+-
+-find_net_config() {(
+-	local vif="$1"
+-	local cfg
+-	local ifname
+-
+-	config_get cfg "$vif" network
+-
+-	[ -z "$cfg" ] && {
+-		include /lib/network
+-		scan_interfaces
+-
+-		config_get ifname "$vif" ifname
+-
+-		cfg="$(find_config "$ifname")"
+-	}
+-	[ -z "$cfg" ] && return 0
+-	echo "$cfg"
+-)}
+-
+-
+-bridge_interface() {(
+-	local cfg="$1"
+-	[ -z "$cfg" ] && return 0
+-
+-	include /lib/network
+-	scan_interfaces
+-
+-	config_get iftype "$cfg" type
+-	[ "$iftype" = bridge ] && config_get "$cfg" ifname
+-)}
+-
+-wifi_fixup_hwmode() {
+-	local device="$1"
+-	local default="$2"
+-	local hwmode hwmode_11n
+-
+-	config_get channel "$device" channel
+-	config_get hwmode "$device" hwmode
+-	case "$hwmode" in
+-		11bg) hwmode=bg;;
+-		11a) hwmode=a;;
+-		11b) hwmode=b;;
+-		11g) hwmode=g;;
+-		11n*)
+-			hwmode_11n="${hwmode##11n}"
+-			case "$hwmode" in
+-				a|g) ;;
+-				default) hwmode_11n="$default"
+-			esac
+-			config_set "$device" hwmode_11n "$hwmode_11n"
+-		;;
+-		*)
+-			hwmode=
+-			if [ "${channel:-0}" -gt 0 ]; then 
+-				if [ "${channel:-0}" -gt 14 ]; then
+-					hwmode=a
+-				else
+-					hwmode=g
+-				fi
+-			else
+-				hwmode="$default"
+-			fi
+-		;;
+-	esac
+-	config_set "$device" hwmode "$hwmode"
+-}
+-
+-wifi_updown() {
+-	[ enable = "$1" ] && wifi_updown disable "$2"
+-	for device in ${2:-$DEVICES}; do (
+-		config_get disabled "$device" disabled
+-		[ 1 == "$disabled" ] && {
+-			echo "'$device' is disabled"
+-			set disable
+-		}
+-		config_get iftype "$device" type
+-		if eval "type ${1}_$iftype" 2>/dev/null >/dev/null; then
+-			eval "scan_$iftype '$device'"
+-			eval "${1}_$iftype '$device'" || echo "$device($iftype): ${1} failed"
+-		else
+-			echo "$device($iftype): Interface type not supported"
+-		fi
+-	); done
+-}
+-
+-wifi_detect() {
+-	for driver in ${2:-$DRIVERS}; do (
+-		if eval "type detect_$driver" 2>/dev/null >/dev/null; then
+-			eval "detect_$driver" || echo "$driver: Detect failed" >&2
+-		else
+-			echo "$driver: Hardware detection not supported" >&2
+-		fi
+-	); done
+-}
+-
+-start_net() {(
+-	local iface="$1"
+-	local config="$2"
+-	local vifmac="$3"
+-
+-	[ -f "/var/run/$iface.pid" ] && kill "$(cat /var/run/${iface}.pid)" 2>/dev/null
+-	include /lib/network
+-	scan_interfaces
+-	setup_interface "$iface" "$config" "" "$vifmac"
+-)}
+-
+-set_wifi_up() {
+-	local cfg="$1"
+-	local ifname="$2"
+-	uci_set_state wireless "$cfg" up 1
+-	uci_set_state wireless "$cfg" ifname "$ifname"
+-}
+-
+-set_wifi_down() {
+-	local cfg="$1"
+-	local vifs vif vifstr
+-
+-	[ -f "/var/run/wifi-${cfg}.pid" ] &&
+-		kill "$(cat "/var/run/wifi-${cfg}.pid")"
+-	uci_revert_state wireless "$cfg"
+-	config_get vifs "$cfg" vifs
+-	for vif in $vifs; do
+-		uci_revert_state wireless "$vif"
+-	done
+-}
+-
+-scan_wifi() {
+-	local cfgfile="$1"
+-	config_cb() {
+-		config_get TYPE "$CONFIG_SECTION" TYPE
+-		case "$TYPE" in
+-			wifi-device)
+-				append DEVICES "$CONFIG_SECTION"
+-			;;
+-			wifi-iface)
+-				config_get device "$CONFIG_SECTION" device
+-				config_get vifs "$device" vifs 
+-				append vifs "$CONFIG_SECTION"
+-				config_set "$device" vifs "$vifs"
+-			;;
+-		esac
+-	}
+-	config_load "${cfgfile:-wireless}"
+-}
+-
+-DEVICES=
+-DRIVERS=
+-include /lib/wifi
+-scan_wifi
+-
+-case "$1" in
+-	down) wifi_updown "disable" "$2";;
+-	detect) wifi_detect "$2";;
+-	*) wifi_updown "enable" "$2";;
+-esac
+diff -Naur a/package/base-files/files/usr/lib/common.awk b/package/base-files/files/usr/lib/common.awk
+--- a/package/base-files/files/usr/lib/common.awk	2007-03-04 04:41:46.644094000 +0000
++++ b/package/base-files/files/usr/lib/common.awk	1970-01-01 00:00:00.000000000 +0000
+@@ -1,68 +0,0 @@
+-# Copyright (C) 2006 OpenWrt.org
+-
+-function portstr(type, str) {
+-	gsub(/-/, ":", str)
+-	if (insmod_mport != 1) {
+-		print "insmod ipt_multiport >&- 2>&-"
+-		insmod_mport = 1
+-	}
+-	if (type == "src") return " -m multiport --sports " str
+-	else return " -m multiport --dports " str
+-}
+-
+-function str2ipt(str) {
+-	str2data(str)
+-	_cmd = ""
+-	if (_l["src"] != "") _cmd = _cmd " -s " _l["src"]
+-	if (_l["dest"] != "") _cmd = _cmd " -d " _l["dest"]
+-	if (_l["proto"] != "") {
+-		_cmd = _cmd " -p " _l["proto"]
+-	}
+-	# scripts need to check for proto="" and emit two rules in that case
+-	if ((_l["proto"] == "") || (_l["proto"] == "tcp") || (_l["proto"] == "udp")) {
+-		if (_l["sport"] != "") _cmd = _cmd portstr("src", _l["sport"])
+-		if (_l["dport"] != "") _cmd = _cmd portstr("dest", _l["dport"])
+-	}
+-	if (_l["layer7"] != "") {
+-		if (insmod_l7 != 1) {
+-			print "insmod ipt_layer7 >&- 2>&-"
+-			insmod_l7 = 1
+-		}
+-		_cmd = _cmd " -m layer7 --l7proto " _l["layer7"]
+-	}
+-	return _cmd
+-}
+-
+-function str2data(str) {
+-	delete _l
+-	_n = split(str, _o, "[\t ]")
+-	for (_i = 1; _i <= _n; _i++) {
+-		_n2 = split(_o[_i], _c, "=")
+-		if (_n2 == 2) _l[_c[1]] = _c[2]
+-	}
+-}
+-
+-function bitcount(c) {
+-	c=and(rshift(c, 1),0x55555555)+and(c,0x55555555)
+-	c=and(rshift(c, 2),0x33333333)+and(c,0x33333333)
+-	c=and(rshift(c, 4),0x0f0f0f0f)+and(c,0x0f0f0f0f)
+-	c=and(rshift(c, 8),0x00ff00ff)+and(c,0x00ff00ff)
+-	c=and(rshift(c,16),0x0000ffff)+and(c,0x0000ffff)
+-	return c
+-}
+-
+-function validate_netmask(nm) {
+-	return and(-nm,compl(nm))
+-}
+-
+-function ip2int(ip) {
+-	for (ret=0,n=split(ip,a,"\."),x=1;x<=n;x++) ret=or(lshift(ret,8),a[x]) 
+-	return ret
+-}
+-
+-function int2ip(ip,ret,x) {
+-	ret=and(ip,255)
+-	ip=rshift(ip,8)
+-	for(;x<3;ret=and(ip,255)"."ret,ip=rshift(ip,8),x++);
+-	return ret
+-}

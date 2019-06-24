@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "file:///usr/share/docbook-xml-4.5/docbookx.dtd" >
+
+<!-- apply docbook stylesheet for html:
+ 
+ xsltproc ˗˗output docname.html \
+   ˗˗stringparam section.autolabel.max.depth 2 \
+   ˗˗stringparam section.autolabel 1 \
+   .../path/to/docbook/4.5/xhtml/docbook.xsl docname.xml
+
+--> 
+   
+<article id="localization">
+ <articleinfo>
+  <title>MSI Package Localizations</title>
+   
+   <author>
+    <firstname>Martin</firstname><surname>Peck</surname>
+    <affiliation>
+     <address><email>coderman at gmail dot com</email></address>
+    </affiliation>
+   </author>
+ 
+   <pubdate>March 10, 2009</pubdate>
+   <copyright>
+     <year>2009</year>
+     <holder>The Tor Project, Inc.</holder>
+   </copyright>
+ </articleinfo>
+
+
+
+<sect1>
+  <title>Introduction</title>
+  <para>
+The Microsoft Installer packages are available in a number of localized translations.
+ To specify a specific localization or language use the TRANSFORMS property when invoking
+ msiexec to install.
+  </para>
+  <para>
+<ulink url="https://translation.torproject.org/projects/vidaliainstaller/">See the Tor Project Translation site for additional information</ulink>.
+  </para>
+
+
+  <sect2 id="langs">
+   <title>Supported Package Languages</title>
+   <para><literallayout>
+en, cs, de, es, fa, fi, fr, he, it, nl, pl, pt, ro, ru, sv
+   </literallayout></para>
+   <para>
+Ex. torvm-de.msi
+   </para>
+   <para><literallayout>
+   </literallayout></para>
+  </sect2>
+
+
+  <sect2 id="transxlate">
+   <title>Supported Translation Transforms</title>
+   <para><literallayout>
+TRANSFORMS=:en (default codepage)
+TRANSFORMS=:cs
+TRANSFORMS=:de
+TRANSFORMS=:es
+TRANSFORMS=:fa
+TRANSFORMS=:fi
+TRANSFORMS=:fr
+TRANSFORMS=:he
+TRANSFORMS=:it
+TRANSFORMS=:nl
+TRANSFORMS=:pl
+TRANSFORMS=:pt
+TRANSFORMS=:ro
+TRANSFORMS=:ru
+TRANSFORMS=:sv
+   </literallayout></para>
+  </sect2>
+</sect1>
+
+
+<sect1>
+  <title>Localized Installer Interfaces</title>
+  <para>
+  </para>
+
+  <sect2 id="instdialogs">
+   <title>Example TRANSFORMS</title>
+
+   <para>
+msiexec /i vidalia-intl.msi TRANSFORMS=:pl
+     <mediaobject>
+      <imageobject><imagedata fileref="img/vidalia-pl.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+   
+   </literallayout></para>
+
+   <para>
+msiexec /i tor-intl.msi TRANSFORMS=:de
+     <mediaobject>
+      <imageobject><imagedata fileref="img/tor-de.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+msiexec /i thandy-intl.msi TRANSFORMS=:ru
+     <mediaobject>
+      <imageobject><imagedata fileref="img/thandy-ru.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+msiexec /i polipo-intl.msi TRANSFORMS=:fr
+     <mediaobject>
+      <imageobject><imagedata fileref="img/polipo-fr.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+msiexec /i torbutton-intl.msi TRANSFORMS=:es
+     <mediaobject>
+      <imageobject><imagedata fileref="img/torbutton-es.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+
+  </sect2>
+
+</sect1>
+
+
+<sect1>
+  <title>Legal Notice</title>
+  <para>
+You may distribute or modify this document according to the terms of the <ulink url="http://www.gnu.org/licenses/fdl-1.2.txt">GNU Free Documentation License Version 1.2 or later</ulink>.
+  </para>
+  <para>
+"<trademark class="registered">Tor</trademark> is a registered trademark of The Tor Project, Inc."
+  </para>
+  <para>
+"<trademark class="registered">Windows</trademark> is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </para>
+</sect1>
+</article>

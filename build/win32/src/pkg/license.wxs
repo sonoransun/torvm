@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="Windows-1252" ?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define ThisProductVersion="0.0.4" ?>
+  <?define ThisProductVersionDisp="$(var.ThisProductVersion)" ?>
+  <?define UpgradeCode="bda6a744-0815-4fdc-88a8-d40d8c154133" ?>
+  <?define CurrProductGUID="5b286e81-56b4-4efb-bc59-9f6cce69a07d" ?>
+  <?define CurrDocsOnDesktopGUID="14b00c23-1dbe-4874-a035-5c1033fa9cd1" ?>
+  <?define CurrLocalProgramsGUID="e342387b-ab0f-4896-8106-76d9867282db" ?>
+
+  <Product Name="Tor License Documents $(var.ThisProductVersionDisp)" Id="$(var.CurrProductGUID)"
+           Language="!(loc.LCID)"
+           Version="$(var.ThisProductVersion)"
+           Manufacturer="https://www.torproject.org"
+           UpgradeCode="$(var.UpgradeCode)">
+    
+    <Package Id="*" Keywords="Installer"
+             Description="Tor License $(var.ThisProductVersionDisp) Installer"
+             Manufacturer="https://www.torproject.org"
+             InstallerVersion="200" Compressed="yes"
+             InstallPrivileges="limited" />
+
+    <Media Id="1" Cabinet="License.cab" CompressionLevel="high"
+           EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+    <Property Id="DiskPrompt" Value="Tor License $(var.ThisProductVersionDisp) Installation Volume [1]" />
+    <Property Id="ALLUSERS" Secure="yes"/>
+    <Property Id="ReinstallModeText">omus</Property>
+
+    <!-- To avoid placing shortcuts all over the desktop / start menu during a
+    silent installation the NOSC=1 option can be passed to omit shortcuts.
+      -->
+    <Property Id="NOSC" Secure="yes"/>
+
+    <!-- Associate this package with the upgrade code for this series
+    to ensure that upgrade installations by Thandy or other means work
+    as expected.
+    The OnlyDetect option must be false to ensure that existing files
+    from an older version are removed and replaced with current files.
+      -->
+    <Upgrade Id="$(var.UpgradeCode)">
+      <UpgradeVersion
+        Property="UPGRADEFOUND"
+        OnlyDetect="no"
+        Minimum="0.0.1"
+        IncludeMinimum="yes"
+        Maximum="$(var.ThisProductVersion)"
+        IncludeMaximum="no"
+      />
+    </Upgrade>
+
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder" Name="LocalAppData">
+        <Directory Id="LocalProgramsFolder" Name="Programs">
+
+          <!-- Until proper support for per-user installs is available we manage Programs folder.
+          Note that this directory will be left in place if it is in use by any other app.
+            -->
+          <Component Id="LocalProgramsFolderRef" Guid="$(var.CurrLocalProgramsGUID)">
+            <CreateFolder />
+            <RemoveFolder Id="RemoveLocalProgramsFolder" On="uninstall" />
+            <RegistryKey Root="HKCU" Key="Software\Tor License" Action="createAndRemoveOnUninstall">
+              <RegistryValue Name="Version" Value="$(var.ThisProductVersion)" Type="string" KeyPath="yes" />
+            </RegistryKey>
+          </Component>
+
+          <Directory Id="ProgramsInstDir" Name="Tor License">
+          </Directory>
+        </Directory>
+      </Directory>
+
+      <Directory Id="DesktopFolder" Name="Desktop">
+        <Component Id="AddTorDocsToDesktop" Guid="$(var.CurrDocsOnDesktopGUID)">
+          <Condition><![CDATA[NOSC <> 1]]> </Condition>
+          <RegistryKey Root="HKCU" Key="Software\Tor License" Action="createAndRemoveOnUninstall">
+            <RegistryValue Name="DesktopShortcut" Value="1" Type="integer" KeyPath="yes" />
+          </RegistryKey>
+          <Shortcut Id="TorDocsDesktopShortcut"
+                    Name="Tor License Documents" Target="[ProgramsInstDir]"
+                    Directory="DesktopFolder" WorkingDirectory="ProgramsInstDir" />
+        </Component>
+      </Directory>
+    </Directory>
+
+    <!-- Build up the feature hierarchy -->
+    <Feature Id="Complete" Title="Tor License Documents"
+             Level="1" Display="expand"
+             Description="Tor License Documents">
+      <Feature Id="MainApplication" Title="Tor License Documents $(var.ThisProductVersionDisp)"
+               AllowAdvertise="no" Absent="disallow" Level="1"
+               Description="Main application">
+        <ComponentRef Id="LocalProgramsFolderRef" />
+      </Feature>
+      <Feature Id="Shortcuts" Title="Shortcuts"
+               AllowAdvertise="no" Absent="allow" Level="1"
+               Description="Add a shortcut to your Desktop.">
+        <Feature Id="DesktopShortcuts" Title="Add to Desktop"
+                 AllowAdvertise="no" Absent="allow" Level="1"
+                 Description="Add shortcut to your Desktop">
+          <ComponentRef Id="AddTorDocsToDesktop" />
+        </Feature>
+      </Feature>
+    </Feature>
+
+    <!-- Upgrade installation sequence. -->
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallValidate" />
+    </InstallExecuteSequence>
+
+    <!-- Set the UI options -->
+    <UIRef Id="WixUI_Custom" />
+    <Icon Id="tor.ico" SourceFile="tor.ico" />
+    <WixVariable Id="WixUIBannerBmp" Value="header.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="welcome.bmp" />
+  </Product>
+</Wix>

@@ -1,0 +1,208 @@
+diff -Naur a/Makefile.winnt b/Makefile.winnt
+--- a/Makefile.winnt	2008-05-30 20:33:34.000000000 +0000
++++ b/Makefile.winnt	2009-09-14 08:14:37.668235490 +0000
+@@ -3,7 +3,7 @@
+ # (c) Filip Navara
+ #
+ OBJECTS = kqemu-win32.o kqemu-mod-i386-win32.o
+-CROSS_PREFIX=i386-mingw32-
++CROSS_PREFIX=
+ 
+ TARGET = kqemu.sys
+ 
+diff -Naur a/common/Makefile b/common/Makefile
+--- a/common/Makefile	2008-05-30 20:33:34.000000000 +0000
++++ b/common/Makefile	2009-09-14 08:16:15.736238552 +0000
+@@ -32,8 +32,8 @@
+ MON_LD=ld
+ ifdef CONFIG_WIN32
+ TARGET=../kqemu-mod-$(ARCH)-win32.o
+-CC=i386-mingw32-gcc
+-LD=i386-mingw32-ld
++CC=gcc
++LD=ld
+ else
+ TARGET=../kqemu-mod-$(ARCH).o
+ CC=gcc
+diff -Naur a/common/i386/monitor_asm.S b/common/i386/monitor_asm.S
+--- a/common/i386/monitor_asm.S	2008-05-30 20:33:34.000000000 +0000
++++ b/common/i386/monitor_asm.S	2009-09-14 07:53:57.128241570 +0000
+@@ -151,9 +151,8 @@
+         jmp *%eax
+                         
+ #define SEG_EXCEPTION(label) \
+-    .section "seg_ex_table", "a" ; \
+-    .long label ; \
+-    .previous
++    .section seg_ex_table, "a" ; \
++    .long label
+ 
+ #ifdef USE_SEG_GP        
+ /* %ebx contains the kqemu_state pointer, %eax the selector, 
+diff -Naur a/common/interp.c b/common/interp.c
+--- a/common/interp.c	2008-05-30 20:33:34.000000000 +0000
++++ b/common/interp.c	2009-09-14 08:04:29.252231223 +0000
+@@ -2456,7 +2456,7 @@
+ #endif
+  next_byte:
+     /* XXX: more precise test */
+-    if (unlikely((pc - (unsigned long)&_start) < MONITOR_MEM_SIZE))
++    if (unlikely((pc - (unsigned long)&start) < MONITOR_MEM_SIZE))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     b = ldub_mem_fast(s, pc + s->cpu_state.segs[R_CS].base);
+     pc++;
+@@ -4912,7 +4912,7 @@
+             if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
+                 goto illegal_op;
+             addr = get_modrm(s, modrm);
+-            if (unlikely((addr - ((unsigned long)&_start - 511)) < 
++            if (unlikely((addr - ((unsigned long)&start - 511)) < 
+                          (MONITOR_MEM_SIZE + 511)))
+                 raise_exception(s, KQEMU_RET_SOFTMMU);
+ #ifdef __x86_64__
+@@ -4934,7 +4934,7 @@
+             if (mod == 3 || !(s->cpuid_features & CPUID_FXSR))
+                 goto illegal_op;
+             addr = get_modrm(s, modrm);
+-            if (unlikely((addr - ((unsigned long)&_start - 511)) < 
++            if (unlikely((addr - ((unsigned long)&start - 511)) < 
+                          (MONITOR_MEM_SIZE + 511)))
+                 raise_exception(s, KQEMU_RET_SOFTMMU);
+ #ifdef __x86_64__
+diff -Naur a/common/kqemu_int.h b/common/kqemu_int.h
+--- a/common/kqemu_int.h	2008-05-30 20:33:34.000000000 +0000
++++ b/common/kqemu_int.h	2009-09-14 08:07:17.832239015 +0000
+@@ -1057,22 +1057,20 @@
+ 
+ #ifdef __x86_64__
+ #define MMU_EXCEPTION(label) \
+-    ".section \"mmu_ex_table\", \"a\"\n"\
+-    ".quad " #label "\n"\
+-    ".previous\n"
++    ".section mmu_ex_table, \"a\"\n"\
++    ".quad " #label "\n"
+ #else
+ #define MMU_EXCEPTION(label) \
+-    ".section \"mmu_ex_table\", \"a\"\n"\
+-    ".long " #label "\n"\
+-    ".previous\n"
++    ".section mmu_ex_table, \"a\"\n"\
++    ".long " #label "\n"
+ #endif
+ 
+-extern char _start;
++extern char start;
+ 
+ static inline uint32_t ldub_mem(struct kqemu_state *s, unsigned long addr)
+ {
+     uint32_t res;
+-    if (unlikely((addr - (unsigned long)&_start) < MONITOR_MEM_SIZE))
++    if (unlikely((addr - (unsigned long)&start) < MONITOR_MEM_SIZE))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+                  "movzbl %1, %0\n" 
+@@ -1085,7 +1083,7 @@
+ static inline uint32_t lduw_mem(struct kqemu_state *s, unsigned long addr)
+ {
+     uint32_t res;
+-    if (unlikely((addr - ((unsigned long)&_start - 1)) < 
++    if (unlikely((addr - ((unsigned long)&start - 1)) < 
+                  (MONITOR_MEM_SIZE + 1)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1099,7 +1097,7 @@
+ static inline uint32_t ldl_mem(struct kqemu_state *s, unsigned long addr)
+ {
+     uint32_t res;
+-    if (unlikely((addr - ((unsigned long)&_start - 3)) < 
++    if (unlikely((addr - ((unsigned long)&start - 3)) < 
+                  (MONITOR_MEM_SIZE + 3)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1114,7 +1112,7 @@
+ static inline uint64_t ldq_mem(struct kqemu_state *s, unsigned long addr)
+ {
+     uint64_t res;
+-    if (unlikely((addr - ((unsigned long)&_start - 7)) < 
++    if (unlikely((addr - ((unsigned long)&start - 7)) < 
+                  (MONITOR_MEM_SIZE + 7)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1161,7 +1159,7 @@
+ 
+ static inline void stb_mem(struct kqemu_state *s, unsigned long addr, uint32_t val)
+ {
+-    if (unlikely((addr - (unsigned long)&_start) < MONITOR_MEM_SIZE))
++    if (unlikely((addr - (unsigned long)&start) < MONITOR_MEM_SIZE))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+                  "movb %b0, %1\n" 
+@@ -1172,7 +1170,7 @@
+ 
+ static inline void stw_mem(struct kqemu_state *s, unsigned long addr, uint32_t val)
+ {
+-    if (unlikely((addr - ((unsigned long)&_start - 1)) < 
++    if (unlikely((addr - ((unsigned long)&start - 1)) < 
+                  (MONITOR_MEM_SIZE + 1)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1184,7 +1182,7 @@
+ 
+ static inline void stl_mem(struct kqemu_state *s, unsigned long addr, uint32_t val)
+ {
+-    if (unlikely((addr - ((unsigned long)&_start - 3)) < 
++    if (unlikely((addr - ((unsigned long)&start - 3)) < 
+                  (MONITOR_MEM_SIZE + 3)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1197,7 +1195,7 @@
+ #if defined (__x86_64__)
+ static inline void stq_mem(struct kqemu_state *s, unsigned long addr, uint64_t val)
+ {
+-    if (unlikely((addr - ((unsigned long)&_start - 7)) < 
++    if (unlikely((addr - ((unsigned long)&start - 7)) < 
+                  (MONITOR_MEM_SIZE + 7)))
+         raise_exception(s, KQEMU_RET_SOFTMMU);
+     asm volatile("1:\n"
+@@ -1220,14 +1218,12 @@
+ 
+ #ifdef __x86_64__
+ #define SEG_EXCEPTION(label) \
+-    ".section \"seg_ex_table\", \"a\"\n"\
+-    ".quad " #label "\n"\
+-    ".previous\n"
++    ".section seg_ex_table, \"a\"\n"\
++    ".quad " #label "\n"
+ #else
+ #define SEG_EXCEPTION(label) \
+-    ".section \"seg_ex_table\", \"a\"\n"\
+-    ".long " #label "\n"\
+-    ".previous\n"
++    ".section seg_ex_table, \"a\"\n"\
++    ".long " #label "\n"
+ #endif
+ 
+ static inline unsigned long compute_eflags_user(struct kqemu_state *s, 
+diff -Naur a/common/monitor.c b/common/monitor.c
+--- a/common/monitor.c	2008-05-30 20:33:34.000000000 +0000
++++ b/common/monitor.c	2009-09-14 08:13:22.708246052 +0000
+@@ -1486,8 +1486,8 @@
+     }
+ }
+ 
+-extern unsigned long __start_seg_ex_table;
+-extern unsigned long __stop_seg_ex_table;
++extern unsigned long _start_seg_ex_table;
++extern unsigned long _stop_seg_ex_table;
+ 
+ static void handle_mon_exception(struct kqemu_state *s, 
+                                  struct kqemu_exception_regs *regs,
+@@ -1496,7 +1496,7 @@
+     unsigned long pc, *p;
+     
+     pc = regs->eip;
+-    for(p = &__start_seg_ex_table; p != &__stop_seg_ex_table; p++) {
++    for(p = &_start_seg_ex_table; p != &_stop_seg_ex_table; p++) {
+         if (*p == pc) goto found;
+     }
+     monitor_panic_regs(s, regs, 

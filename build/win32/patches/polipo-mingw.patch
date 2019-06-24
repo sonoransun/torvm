@@ -1,0 +1,50 @@
+diff -Naur orig-polipo-20080907/Makefile mod-polipo-20080907/Makefile
+--- orig-polipo-20080907/Makefile	2008-09-07 21:21:20.000000000 +0000
++++ mod-polipo-20080907/Makefile	2008-12-22 19:25:07.878902816 +0000
+@@ -1,9 +1,9 @@
+-PREFIX = /usr/local
+-BINDIR = $(PREFIX)/bin
+-MANDIR = $(PREFIX)/man
+-INFODIR = $(PREFIX)/info
+-LOCAL_ROOT = /usr/share/polipo/www
+-DISK_CACHE_ROOT = /var/cache/polipo
++PREFIX = Polipo
++BINDIR = $(PREFIX)\bin
++MANDIR = $(PREFIX)\man
++INFODIR = $(PREFIX)\info
++LOCAL_ROOT = $(PREFIX)
++DISK_CACHE_ROOT = $(PREFIX)\cache
+ 
+ # To compile with Unix CC:
+ 
+@@ -13,7 +13,7 @@
+ 
+ # CC = gcc
+ # CDEBUGFLAGS = -Os -g -Wall -std=gnu99
+-CDEBUGFLAGS = -Os -g -Wall
++CDEBUGFLAGS = -Os -Wall
+ # CDEBUGFLAGS = -Os -Wall
+ # CDEBUGFLAGS = -g -Wall
+ 
+@@ -38,8 +38,10 @@
+ 
+ # On mingw, you need
+ 
+-# EXE=.exe
+-# LDLIBS = -lwsock32
++EXE=.exe
++LDLIBS = -lwsock32 -lregex
++
++TOR_DEFINES = -DNO_DISK_CACHE -DNO_IPv6 -DNO_FANCY_RESOLVER -DHAVE_REGEX
+ 
+ FILE_DEFINES = -DLOCAL_ROOT=\"$(LOCAL_ROOT)/\" \
+                -DDISK_CACHE_ROOT=\"$(DISK_CACHE_ROOT)/\"
+@@ -61,7 +63,7 @@
+ #  -DNO_REDIRECTOR to compile out the Squid-style redirector code
+ #  -DNO_SYSLOG to compile out logging to syslog
+ 
+-DEFINES = $(FILE_DEFINES) $(PLATFORM_DEFINES)
++DEFINES = $(FILE_DEFINES) $(PLATFORM_DEFINES) $(TOR_DEFINES)
+ 
+ CFLAGS = $(MD5INCLUDES) $(CDEBUGFLAGS) $(DEFINES) $(EXTRA_DEFINES)
+ 

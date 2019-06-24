@@ -1,0 +1,71 @@
+diff -Naur a/vl.c b/vl.c
+--- a/vl.c	2009-05-20 20:47:01.000000000 +0000
++++ b/vl.c	2009-08-19 10:07:39.161453868 +0000
+@@ -4042,6 +4042,7 @@
+            "Linux boot specific:\n"
+            "-kernel bzImage use 'bzImage' as kernel image\n"
+            "-append cmdline use 'cmdline' as kernel command line\n"
++           "-appendstdin    read from stdin for kernel command line\n"
+            "-initrd file    use 'file' as initial ram disk\n"
+            "\n"
+            "Debug/Expert options:\n"
+@@ -4182,6 +4183,7 @@
+     /* Linux boot specific: */
+     QEMU_OPTION_kernel,
+     QEMU_OPTION_append,
++    QEMU_OPTION_appendstdin,
+     QEMU_OPTION_initrd,
+ 
+     /* Debug/Expert options: */
+@@ -4302,6 +4304,7 @@
+     /* Linux boot specific: */
+     { "kernel", HAS_ARG, QEMU_OPTION_kernel },
+     { "append", HAS_ARG, QEMU_OPTION_append },
++    { "appendstdin", 0, QEMU_OPTION_appendstdin },
+     { "initrd", HAS_ARG, QEMU_OPTION_initrd },
+ 
+     /* Debug/Expert options: */
+@@ -4532,6 +4535,29 @@
+     }
+ }
+ 
++#define MAX_KERNEL_CMDLN 32768
++static char * read_stdin(void)
++{
++    int bufsz = MAX_KERNEL_CMDLN;
++    char * parms = NULL;
++    int cnt;
++
++    parms = qemu_mallocz(sizeof(MAX_KERNEL_CMDLN));
++    if (!parms)
++        return NULL;
++    cnt = read(0, parms, bufsz-1);
++    if (cnt > 0) {
++        /* probably not necessary due to mallocz, but just to be safe... */
++        parms[cnt] = 0;
++    }
++    else {
++        qemu_free(parms);
++        parms = NULL;
++    }
++    /* don't know when this can be free'd; let process exit sort it out */
++    return parms;
++}
++
+ #ifdef _WIN32
+ static BOOL WINAPI qemu_ctrl_handler(DWORD type)
+ {
+@@ -4861,6 +4887,13 @@
+             case QEMU_OPTION_append:
+                 kernel_cmdline = optarg;
+                 break;
++            case QEMU_OPTION_appendstdin:
++                kernel_cmdline = read_stdin();
++                if (kernel_cmdline == NULL) {
++                    fprintf (stderr, "Warning: appendstdin requested but nothing read from stdin.");
++                    kernel_cmdline = "";
++                }
++                break;
+             case QEMU_OPTION_cdrom:
+                 drive_add(optarg, CDROM_ALIAS);
+                 break;

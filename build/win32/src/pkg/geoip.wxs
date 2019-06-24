@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="Windows-1252" ?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define ThisProductVersion="0.0.2" ?>
+  <?define ThisProductVersionDisp="$(var.ThisProductVersion)" ?>
+  <?define UpgradeCode="27bcb81b-f12a-4ac6-88f7-481e085ffd98" ?>
+  <?define CurrProductGUID="1e449b48-dcf1-4da8-bc77-266c3c8cfbe1" ?>
+  <?define CurrTorVMProgramsGUID="be47134f-947c-4840-a720-c193bfc09c97" ?>
+
+  <Product Name="Tor GeoIP Data $(var.ThisProductVersionDisp)" Id="$(var.CurrProductGUID)"
+           Language="!(loc.LCID)"
+           Version="$(var.ThisProductVersion)"
+           Manufacturer="https://www.torproject.org"
+           UpgradeCode="$(var.UpgradeCode)">
+    
+    <Package Id="*" Keywords="Installer"
+             Description="Tor GeoIP Data $(var.ThisProductVersionDisp) Installer"
+             Manufacturer="https://www.torproject.org"
+             InstallerVersion="200" Compressed="yes"
+             InstallPrivileges="limited" />
+
+    <Media Id="1" Cabinet="License.cab" CompressionLevel="high"
+           EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+    <Property Id="DiskPrompt" Value="Tor GeoIP Data $(var.ThisProductVersionDisp) Installation Volume [1]" />
+    <Property Id="ALLUSERS" Secure="yes"/>
+    <Property Id="ReinstallModeText">omus</Property>
+
+    <!-- Associate this package with the upgrade code for this series
+    to ensure that upgrade installations by Thandy or other means work
+    as expected.
+    The OnlyDetect option must be false to ensure that existing files
+    from an older version are removed and replaced with current files.
+      -->
+    <Upgrade Id="$(var.UpgradeCode)">
+      <UpgradeVersion
+        Property="UPGRADEFOUND"
+        OnlyDetect="no"
+        Minimum="0.0.1"
+        IncludeMinimum="yes"
+        Maximum="$(var.ThisProductVersion)"
+        IncludeMaximum="no"
+      />
+    </Upgrade>
+
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder" Name="ProgramFiles">
+        <Directory Id="ProgramsInstDir" Name="Tor VM">
+          <Component Id="TorVMProgramsFolderRef" Guid="$(var.CurrTorVMProgramsGUID)">
+            <CreateFolder />
+            <RemoveFolder Id="RemoveTorVMProgramsFolder" On="uninstall" />
+            <RegistryKey Root="HKCU" Key="Software\Tor GeoIP Data" Action="createAndRemoveOnUninstall">
+              <RegistryValue Name="Version" Value="$(var.ThisProductVersion)" Type="string" KeyPath="yes" />
+            </RegistryKey>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <!-- Build up the feature hierarchy -->
+    <Feature Id="Complete" Title="Tor GeoIP Data"
+             Level="1" Display="expand"
+             Description="Tor GeoIP Data">
+      <Feature Id="MainApplication" Title="Tor GeoIP Data $(var.ThisProductVersionDisp)"
+               AllowAdvertise="no" Absent="disallow" Level="1"
+               Description="Main application">
+        <ComponentRef Id="TorVMProgramsFolderRef" />
+      </Feature>
+    </Feature>
+
+    <!-- Upgrade installation sequence. -->
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallValidate" />
+    </InstallExecuteSequence>
+
+    <!-- Set the UI options -->
+    <UIRef Id="WixUI_Custom" />
+    <Icon Id="tor.ico" SourceFile="tor.ico" />
+    <WixVariable Id="WixUIBannerBmp" Value="header.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="welcome.bmp" />
+  </Product>
+</Wix>

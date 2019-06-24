@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+  "file:///usr/share/docbook-xml-4.5/docbookx.dtd" >
+
+<!-- apply docbook stylesheet for html:
+ 
+ xsltproc ˗˗output docname.html \
+   ˗˗stringparam section.autolabel.max.depth 2 \
+   ˗˗stringparam section.autolabel 1 \
+   .../path/to/docbook/4.5/xhtml/docbook.xsl docname.xml
+
+--> 
+   
+<article id="usercreate">
+ <articleinfo>
+  <title>Creating Limited Windows User Accounts</title>
+   
+   <author>
+    <firstname>Martin</firstname><surname>Peck</surname>
+    <affiliation>
+     <address><email>coderman at gmail dot com</email></address>
+    </affiliation>
+   </author>
+ 
+   <pubdate>March 10, 2009</pubdate>
+   <copyright>
+     <year>2009</year>
+     <holder>The Tor Project, Inc.</holder>
+   </copyright>
+ </articleinfo>
+
+
+
+<sect1>
+  <title>Introduction</title>
+  <para>
+  </para>
+
+  <sect2 id="leastprivs">
+   <title>Defense In Depth With Reduced Privilege Accounts</title>
+   <para>
+Many applications for Windows operating systems fail to implement even the most basic separation of
+ priveleges between applications. The ability to restrict the rights of untrusted applications by user
+ is present on all supported versions of Windows. Preventing rogue code from escalating an application
+ flaw into full host compromise is a useful defensive technique despite the additional effort required.
+   </para>
+  </sect2>
+</sect1>
+
+
+<sect1>
+  <title>Create Limited User</title>
+  <para>
+  </para>
+
+  <sect2 id="X">
+   <title>User Accounts Utility</title>
+
+   <para>
+Navigate to the control panel.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc01.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+Select "Create a new account" option.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc02.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+Provide a nickname for the anonymous limited user account.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc03.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+The "Limited" account type is the reduced privilege user option.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc04.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+  
+   <para>
+Create the account.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc05.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+  
+   <para>
+The new user is added to the list of accounts on the local system.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc06.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+  </sect2>
+
+
+  <sect2 id="switchuser">
+   <title>Switch User</title>
+  
+   <para>
+You can have multiple user "sessions" active at the same time and switch foreground
+ between them as shown:
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc07.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+
+   <para>
+The first time you log in as a new user the personal settings initialization may
+ take longer than usual.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc08.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+  
+   <para>
+The new limited user desktop has its own configuration and environment.
+     <mediaobject>
+      <imageobject><imagedata fileref="img/uc09.png" format="png" /></imageobject>
+     </mediaobject>
+   </para><para><literallayout>
+
+   </literallayout></para>
+  
+  </sect2>
+
+</sect1>
+
+
+<sect1>
+  <title>Legal Notice</title>
+  <para>
+You may distribute or modify this document according to the terms of the <ulink url="http://www.gnu.org/licenses/fdl-1.2.txt">GNU Free Documentation License Version 1.2 or later</ulink>.
+  </para>
+  <para>
+"<trademark class="registered">Tor</trademark> is a registered trademark of The Tor Project, Inc."
+  </para>
+  <para>
+"<trademark class="registered">Windows</trademark> is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </para>
+</sect1>
+</article>

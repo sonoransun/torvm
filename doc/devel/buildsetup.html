@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Windows Build Environment</title><meta name="generator" content="DocBook XSL Stylesheets V1.68.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="win32buildsetup"></a>Windows Build Environment</h1></div><div><div class="author"><h3 class="author"><span class="firstname">Martin</span> <span class="surname">Peck</span></h3><div class="affiliation"><div class="address"><p><code class="email">&lt;<a href="mailto:coderman at gmail dot com">coderman at gmail dot com</a>&gt;</code></p></div></div></div></div><div><p class="copyright">Copyright © 2009 The Tor Project, Inc.</p></div><div><p class="pubdate">February 20, 2009</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#id2486682">1. Introduction</a></span></dt><dd><dl><dt><span class="sect2"><a href="#buildintegrity">1.1. Build Automation and Integrity</a></span></dt><dt><span class="sect2"><a href="#vmbuildhosts">1.2. Virtual Machine Guest Builds</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2465311">2. Build Setup</a></span></dt><dd><dl><dt><span class="sect2"><a href="#prereqs">2.1. Prerequisites</a></span></dt><dt><span class="sect2"><a href="#basicsetup">2.2. Basic Windows VM Setup</a></span></dt><dt><span class="sect2"><a href="#ddkinstall">2.3. Install Driver Development Kit</a></span></dt><dt><span class="sect2"><a href="#installvcpp">2.4. Install Visual C++ Express Edition</a></span></dt><dt><span class="sect2"><a href="#vmcheckpoint">2.5. SAVE YOUR WINDOWS VIRTUAL DISK IMAGE AT THIS POINT</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2455668">3. Running Builds</a></span></dt><dd><dl><dt><span class="sect2"><a href="#runfullbuild">3.1. Launch Full Build</a></span></dt><dt><span class="sect2"><a href="#runpartbuild">3.2. Partial and Development Builds</a></span></dt><dt><span class="sect2"><a href="#msysenv">3.3. MSYS Development Tools</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2455789">4. Legal Notice</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2486682"></a>1. Introduction</h2></div></div></div><p>
+This document describes the Windows system configuration and package installation required for
+ building the Tor VM packages.
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="buildintegrity"></a>1.1. Build Automation and Integrity</h3></div></div></div><p>
+Fully automated builds provide a number of benefits to the development life cycle including
+ frequent binary releases and integration with automated test harnesses. An automated build
+ can also improve the compilation and packaging of production ready releases for public
+ distribution.
+   </p><p>
+Assuming no network resources are necessary during builds a known good Windows installation
+ coupled with the same set of build sources should always produce a functionally
+ equivalent set of application binaries and libraries. [note: due to the nature of linking
+ on win32 platforms, and possibly other reasons, it is unlikely that two builds of the same
+ application image will result in identical binaries with identical digests.]
+   </p></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="vmbuildhosts"></a>1.2. Virtual Machine Guest Builds</h3></div></div></div><p>
+Windows virtual machines are used to build the Tor VM packages inside a guest OS instance
+ to achieve the integrity and automation desired in a reliable software distribution system.
+   </p><p>
+It is recommended that a clean installation from source media be performed on a new VM image
+ to ensure that virtual disks used for builds are void of any conflicting or malicious code.
+   </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2465311"></a>2. Build Setup</h2></div></div></div><p>
+The instructions below will prepare a minimal Windows XP build host environment sufficient to
+ run the Tor VM build ISO image and packaging.
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="prereqs"></a>2.1. Prerequisites</h3></div></div></div><p>
+You will require the following:
+   </p><div class="sect3" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id2465334"></a>A Windows Operating System</h4></div></div></div><div class="itemizedlist"><ul type="disc"><li><span><strong class="command">Windows XP</strong></span><p>
+Windows XP is the suggested build host OS. Saving an image without upgrading service packs is
+recommended in case testing service pack incompatibilities becomes necessary.
+      </p></li><li><span><strong class="command">Windows 2000 SP2</strong></span><p>
+Windows 2000 with at least Service Pack 2 (SP2) may also be used for builds.
+      </p></li><li><span><strong class="command">Windows Vista</strong></span><p>
+Vista is NOT recommended. The new win32 APIs are not backward compatible with 2k or XP
+ and may produce builds linked to these interfaces.
+      </p></li></ul></div></div><div class="sect3" lang="en" xml:lang="en"><div class="titlepage"><div><div><h4 class="title"><a id="id2457287"></a>Microsoft Development Tools</h4></div></div></div><div class="itemizedlist"><ul type="disc"><li><span><strong class="command"><a href="http://download.microsoft.com/download/9/0/f/90f019ac-8243-48d3-91cf-81fc4093ecfd/1830_usa_ddk.iso" target="_top">Windows Driver Development Kit</a> (231 MBytes)</strong></span></li><li><span><strong class="command"><a href="http://www.microsoft.com/express/download/offline.aspx" target="_top">Visual Studio Express Edition DVD</a> (749 MBytes)</strong></span></li></ul></div></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="basicsetup"></a>2.2. Basic Windows VM Setup</h3></div></div></div><p>
+Changing the display to 16bit color depth may conserve resources and is more amenable
+ to most virtual machine software like VM Ware or VirtualBox.
+     </p><div class="mediaobject"><img src="img/setup1.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Disable the screen saver and sleep modes.
+     </p><div class="mediaobject"><img src="img/setup2.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Disable automatic updates. It is recommended that you manage updates offline in the
+ source OS images and not in temporal build host instances.
+     </p><div class="mediaobject"><img src="img/setup3.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The indexing service is not necessary.
+     </p><div class="mediaobject"><img src="img/setup4.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="ddkinstall"></a>2.3. Install Driver Development Kit</h3></div></div></div><p>
+This ISO image has the annoying autorun behavior of launching IE to browse a readme.
+ You will need to "Explore" the CD-ROM rather than double click or open it.
+     </p><div class="mediaobject"><img src="img/ddkinst1.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Run the setup program.
+     </p><div class="mediaobject"><img src="img/ddkinst2.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+A graphical installer is provided.
+     </p><div class="mediaobject"><img src="img/ddkinst3.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/ddkinst4.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Accept the default location for the install. Do not change the destination.
+     </p><div class="mediaobject"><img src="img/ddkinst5.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Documentation is not necessary.
+     </p><div class="mediaobject"><img src="img/ddkinst6.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The installation will consume about 700 MBytes of disk space.
+     </p><div class="mediaobject"><img src="img/ddkinst7.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/ddkinst8.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/ddkinst9.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="installvcpp"></a>2.4. Install Visual C++ Express Edition</h3></div></div></div><p>
+When the Visual Studio DVD is loaded a setup program should launch automatically
+ via Autorun.
+     </p><div class="mediaobject"><img src="img/vsinst1.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Select Visual C++ 2008 Express Edition for installation.
+     </p><div class="mediaobject"><img src="img/vsinst2.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/vsinst3.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Step through the Visual C++ install process.
+     </p><div class="mediaobject"><img src="img/vsinst4.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/vsinst5.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The Silverlight Runtime and SQL Server components should not be installed.
+     </p><div class="mediaobject"><img src="img/vsinst6.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Accept the default destination.
+     </p><div class="mediaobject"><img src="img/vsinst7.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/vsinst8.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Part way through installation you will need to restart the operating system.
+     </p><div class="mediaobject"><img src="img/vsinst9.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/vsinst10.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Once the OS has restarted the installation process will continue.
+     </p><div class="mediaobject"><img src="img/vsinst11.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+
+     </p><div class="mediaobject"><img src="img/vsinst12.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+It can take quite a few minutes for the install to complete.
+     </p><div class="mediaobject"><img src="img/vsinst13.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="vmcheckpoint"></a>2.5. SAVE YOUR WINDOWS VIRTUAL DISK IMAGE AT THIS POINT</h3></div></div></div><p>Once the necessary software is installed you should shutdown the Windows guest OS
+ and make a backup of the virtual disk image file. You should always build release packages
+ on a clean virtual disk restored from an authenticated backup image.</p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2455668"></a>3. Running Builds</h2></div></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="runfullbuild"></a>3.1. Launch Full Build</h3></div></div></div><p>
+When the build ISO is loaded into a running system with Autorun enabled the build will
+ start automatically.
+     </p><div class="mediaobject"><img src="img/bldrun1.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The install.bat script on the ISO disc can also be invoked directly to start
+ a build.
+     </p><div class="mediaobject"><img src="img/bldrun2.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="runpartbuild"></a>3.2. Partial and Development Builds</h3></div></div></div><p>
+It is often useful to have a build host with most of the common software and toolchain
+ already prepared and only the latest versions of a particular package are desired.
+   </p><p>
+Select the package(s) you wish to build frequently and launch an ISO build with the
+ appropriate PACKAGE_BUILT=yes in your environment before running install.bat.
+   </p><p>
+Save this virtual disk image and use it whenever just that software needs
+ building. This method of builds is more suitable for a development buildbot following
+ source commits than the full build of all tools and packages.
+   </p></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="msysenv"></a>3.3. MSYS Development Tools</h3></div></div></div><p>
+The build ISO will install a number of MinGW32 and MSYS tools into C:\msys\1.0\. Run the
+ C:\msys\1.0\msys.bat script to start a shell terminal.
+   </p><p>
+Sources are in the /src/ directory in the msys environment and the buildall.sh script is
+ used to script the process process.
+   </p><p>
+Run "/src/buildall.sh shell" for a new login shell with all of the PATH and environment
+ prepared for individual package builds and development.
+   </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2455789"></a>4. Legal Notice</h2></div></div></div><p>
+You may distribute or modify this document according to the terms of the <a href="http://www.gnu.org/licenses/fdl-1.2.txt" target="_top">GNU Free Documentation License Version 1.2 or later</a>.
+  </p><p>
+"<span class="trademark">Tor</span>® is a registered trademark of The Tor Project, Inc."
+  </p><p>
+"<span class="trademark">VMware</span>® is a registered trademark of VMware, Inc. in the United States and other jurisdictions."
+  </p><p>
+"<span class="trademark">Windows</span>® is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </p></div></div></body></html>

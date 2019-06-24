@@ -1,0 +1,26 @@
+#!/bin/bash
+export base=`pwd`
+export kerndir="../kamikaze/${TGTNAME}/bin"
+export work="${base}/vm-isosrc"
+export iso="${base}/vm.iso"
+export imgfile="openwrt-x86-vmlinuz"
+
+if [ -f $kerndir/$imgfile ]; then
+  cp -f $kerndir/$imgfile $work/kernels/boot
+else
+  echo "Unable to find built kernel image $imgfile at path $kerndir" >&2
+  exit 1
+fi
+
+(
+  cd $work
+
+  rm -f $iso 1>/dev/null 2>/dev/null
+  mkisofs \
+    -hide-rr-moved \
+    -no-emul-boot -boot-load-size 8 -boot-info-table -b isolinux/isolinux.bin -c isolinux/boot.cat \
+    -pad -l -o $iso -r -J .
+  if (( $? != 0 )); then exit 1; fi
+)
+if (( $? != 0 )); then exit 1; fi
+exit 0

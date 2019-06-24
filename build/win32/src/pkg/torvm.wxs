@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="Windows-1252" ?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define ThisProductVersion="0.0.3" ?>
+  <?define ThisProductVersionDisp="0.0.2-dev" ?>
+  <?define UpgradeCode="3f874171-34a0-4af8-8c66-27a681ac5fb6" ?>
+  
+  <?define CurrProductGUID="9c9f24f0-5638-4c11-8d71-7cddc1809697" ?>
+  <?define CurrExecutableGUID="18e1c748-ffb8-42df-88b4-faf291ce5458" ?>
+  <?define CurrStartMenuGUID="e0a28e8d-4adb-40fd-89a4-7e9f66e1ecd4" ?>
+  <?define CurrDesktopGUID="ec7e6d15-9284-4c2d-84d8-cdaa6b6af1dc" ?>
+  <?define CurrDocsOnDesktopGUID="4fd55e8a-d63e-4688-bbd1-457d823f5f53" ?>
+  <?define CurrStartupGUID="d47507b2-f574-4b76-b7bd-9d07a1d4e800" ?>
+
+  <Product Name="Tor VM $(var.ThisProductVersionDisp)" Id="$(var.CurrProductGUID)"
+           Language="!(loc.LCID)"
+           Version="$(var.ThisProductVersion)"
+           Manufacturer="https://www.torproject.org"
+           UpgradeCode="$(var.UpgradeCode)">
+    
+    <Package Id="*" Keywords="Installer"
+             Description="Tor VM $(var.ThisProductVersionDisp) Installer"
+             Manufacturer="www.torproject.org"
+             InstallerVersion="200" Compressed="yes"
+             InstallPrivileges="elevated" />
+
+    <Media Id="1" Cabinet="TorVM.cab" CompressionLevel="high"
+           EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+    <Property Id="DiskPrompt" Value="Tor VM $(var.ThisProductVersionDisp) Installation Volume [1]" />
+    <Property Id="ALLUSERS" Secure="yes" />
+    <Property Id="BUNDLE" Secure="yes" />
+    <Property Id="ReinstallModeText">omus</Property>
+
+    <!-- Associate this package with the upgrade code for this series
+    to ensure that upgrade installations by Thandy or other means work
+    as expected.
+    The OnlyDetect option must be false to ensure that existing files
+    from an older version are removed and replaced with current files.
+      -->
+    <Upgrade Id="$(var.UpgradeCode)">
+      <UpgradeVersion
+        Property="UPGRADEFOUND"
+        OnlyDetect="no"
+        Minimum="0.0.1"
+        IncludeMinimum="yes"
+        Maximum="$(var.ThisProductVersion)"
+        IncludeMaximum="no"
+      />
+    </Upgrade>
+
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder" Name="ProgramFiles">
+       <Directory Id="ProgramsInstDir" Name="Tor VM">
+
+        <!-- Main Tor VM application files -->
+        <Component Id="TorVMExecutable" Guid="$(var.CurrExecutableGUID)">
+          <CreateFolder/>
+          <RemoveFolder Id="RemoveProgramsInstDir" On="uninstall" />
+          <RegistryKey Root="HKCU" Key="Software\Tor VM" Action="createAndRemoveOnUninstall">
+            <RegistryValue Name="Version" Value="$(var.ThisProductVersionDisp)" Type="string" KeyPath="yes" />
+          </RegistryKey>
+          <File Id="TorVMExe" DiskId="1"
+                Name="torvm.exe" Source="torvm.exe" />
+        </Component>
+
+        </Directory>
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder" Name="Programs">
+        <Directory Id="ShortcutFolder" Name="Tor VM">
+          <Component Id="AddTorVMToStartMenu" Guid="$(var.CurrStartMenuGUID)">
+            <RegistryKey Root="HKCU" Key="Software\Tor VM" Action="createAndRemoveOnUninstall">
+              <RegistryValue Name="StartMenuShortcut" Value="1" Type="integer" KeyPath="yes" />
+            </RegistryKey>
+            <Shortcut Id="TorVMStartMenuShortcut"
+                      Name="Tor VM" Target="[ProgramsInstDir]torvm.exe"
+                      Arguments="--bundle"
+                      Directory="ShortcutFolder" WorkingDirectory="ProgramsInstDir"
+                      Icon="torvm.ico" IconIndex="0" />
+            <Shortcut Id="TorVMRepairStartMenuShortcut"
+                      Name="Tor VM Repair" Target="[ProgramsInstDir]torvm.exe"
+                      Arguments="--bundle --clean"
+                      Directory="ShortcutFolder" WorkingDirectory="ProgramsInstDir"
+                      Icon="torvm.ico" IconIndex="0" />
+            <RemoveFolder Id="RemoveShortcutFolder" On="uninstall" />
+          </Component>
+        </Directory>
+      </Directory>
+
+      <Directory Id="DesktopFolder" Name="Desktop">
+        <Component Id="AddTorVMToDesktop" Guid="$(var.CurrDesktopGUID)">
+          <RegistryKey Root="HKCU" Key="Software\Tor VM" Action="createAndRemoveOnUninstall">
+            <RegistryValue Name="DesktopShortcut" Value="1" Type="integer" KeyPath="yes" />
+          </RegistryKey>
+          <Shortcut Id="TorVMDesktopShortcut"
+                    Name="Tor VM" Target="[ProgramsInstDir]torvm.exe"
+                    Arguments="--bundle"
+                    Directory="DesktopFolder" WorkingDirectory="ProgramsInstDir"
+                    Icon="torvm.ico" IconIndex="0" />
+        </Component>
+      </Directory>
+
+      <Component Id="AddToStartupItems" Guid="$(var.CurrStartupGUID)">
+        <RegistryKey Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Action="createAndRemoveOnUninstall">
+          <RegistryValue Name="Tor VM" Value='"[ProgramsInstDir]torvm.exe --bundle"' Type="string" />
+        </RegistryKey>
+      </Component>
+    </Directory>
+
+    <!-- Build up the feature hierarchy -->
+    <Feature Id="Complete" Title="Tor VM"
+             Level="1" Display="expand"
+             Description="Tor VM is an experimental virtual machine implementation of Tor for Windows.">
+      <Feature Id="MainApplication" Title="Tor VM $(var.ThisProductVersionDisp)"
+               AllowAdvertise="no" Absent="disallow" Level="1"
+               Description="Main application">
+        <ComponentRef Id="TorVMExecutable" />
+      </Feature>
+      <Feature Id="Shortcuts" Title="Shortcuts"
+               AllowAdvertise="no" Absent="allow" Level="1"
+               Description="Add a shortcut to Tor VM to your Start menu or Desktop.">
+        <Feature Id="StartMenuShortcuts" Title="Add to Start menu"
+                 AllowAdvertise="no" Absent="allow" Level="1"
+                 Description="Add Tor VM to your Start menu">
+          <ComponentRef Id="AddTorVMToStartMenu" />
+        </Feature>
+        <Feature Id="DesktopShortcuts" Title="Add to Desktop"
+                 AllowAdvertise="no" Absent="allow" Level="1"
+                 Description="Add Tor VM to your Desktop">
+          <ComponentRef Id="AddTorVMToDesktop" />
+        </Feature>
+        <Feature Id="RunAtStartup" Title="Run at Startup"
+                 AllowAdvertise="no" Absent="allow" Level="1"
+                 Description="Run Tor VM automatically when your system starts">
+          <ComponentRef Id="AddToStartupItems" />
+        </Feature>
+      </Feature>
+    </Feature>
+
+    <!-- Upgrade installation sequence. -->
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallValidate" />
+    </InstallExecuteSequence>
+
+    <!-- Set the UI options -->
+    <UIRef Id="WixUI_Custom" />
+    <Icon Id="torvm.ico" SourceFile="torvm.ico" />
+    <WixVariable Id="WixUIBannerBmp" Value="default-header.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="default-welcome.bmp" />
+  </Product>
+</Wix>

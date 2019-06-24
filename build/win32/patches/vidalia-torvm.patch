@@ -1,0 +1,1242 @@
+diff -Naur a/pkg/win32/polipo.conf b/pkg/win32/polipo.conf
+--- a/pkg/win32/polipo.conf	2008-04-06 00:00:07.066809000 +0000
++++ b/pkg/win32/polipo.conf	2009-05-04 08:16:00.566347824 +0000
+@@ -35,7 +35,6 @@
+ # parentProxy = "squid.example.org:3128"
+ 
+ # Uncomment this if you want to use a parent SOCKS proxy:
+-
+ socksParentProxy = "localhost:9050"
+ socksProxyType = socks5
+ 
+@@ -88,7 +87,7 @@
+ # Uncomment this if you want to contact IPv4 hosts only (and make DNS
+ # queries somewhat faster):
+ #
+-# dnsQueryIPv6 = no
++dnsQueryIPv6 = no
+ 
+ # Uncomment this if you want Polipo to prefer IPv4 to IPv6 for
+ # double-stack hosts:
+@@ -99,7 +98,9 @@
+ # default resolver instead.  If you do that, Polipo will freeze during
+ # every DNS query:
+ 
+-dnsUseGethostbyname = yes
++# For Tor VM we transparently proxy DNS and thus don't need to use this
++# slow resolver
++# dnsUseGethostbyname = yes
+ 
+ 
+ ### HTTP
+diff -Naur a/pkg/win32/vidalia.wxs.in b/pkg/win32/vidalia.wxs.in
+--- a/pkg/win32/vidalia.wxs.in	2009-03-21 04:03:31.345626000 +0000
++++ b/pkg/win32/vidalia.wxs.in	2009-05-04 08:16:00.602521595 +0000
+@@ -1,345 +1,371 @@
+ <?xml version="1.0" encoding="Windows-1252" ?>
+ <!-- 
+-  $Id: vidalia.wxs.in 3639 2009-03-21 04:03:31Z edmanm $
++  $Id: vidalia.wxs.in 3329 2008-11-21 02:04:34Z edmanm $
++
++  This file is part of Vidalia, and is subject to the license terms in the
++  LICENSE file, found in the top level directory of this distribution. If 
++  you did not receive the LICENSE file with this file, you may obtain it
++  from the Vidalia source package distributed by the Vidalia Project at
++  http://www.vidalia-project.net/. No part of Vidalia, including this file,
++  may be copied, modified, propagated, or distributed except according to
++  the terms described in the LICENSE file.
++
++  Compile with: 
++    candle.exe vidalia.wxs
++    light.exe vidalia.wixobj -out vidalia.msi -ext C:\Path\to\Wix\bin\WixUIExtension.dll
+  -->
+ <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
++  <?define ThisProductVersion="0.2.2" ?>
++  <?define ThisProductVersionDisp="0.2.0" ?>
++  <?define VidaliaVersion="0.2.0" ?>
++  <?define TorVersion="latest" ?>
++  <?define TorbuttonVersion="latest" ?>
++  <?define PolipoVersion="latest" ?>
++  <?define PrivoxyVersion="latest" ?>
++  <?define VidaliaBundleVersion="0.0.2" ?>
++  <?define UpgradeCode="147903e8-fa6f-47f0-bf97-b7250337b2b7" ?>
++  
++  <?define CurrProductGUID="67afe87d-9f74-4a22-b4bf-e4dfcefd6cb1" ?>
++  <?define CurrExecutableGUID="ebda5f07-6e3c-4904-9fcf-2ad3d3793773" ?>
++  <?define CurrQtLibsGUID="2ee91de7-1c50-488f-97be-984f4abcc388" ?>
++  <?define CurrCryptoLibsGUID="4ee11862-00a8-467f-8d08-04f6e8522b3c" ?>
++  <?define CurrMingwLibsGUID="9c598e06-14c3-4891-983f-efd248f16cf4" ?>
++  <?define CurrGeoIPCacheGUID="67210dc4-7977-4499-bdd9-0b715d86352b" ?>
++  <?define CurrPolipoConfigGUID="6b2b749d-d0cc-420d-a3d3-e7b00bf0c81d" ?>
++  <?define CurrMarblePluginGUID="6999734b-dc3b-4751-8d69-65065650be80" ?>
++  <?define CurrPluginDataDirGUID="0876256d-40e7-4749-abd7-8929441af657" ?>
++  <?define CurrPluginImageFormatsGUID="712fa492-4ea3-4cd7-b1da-dd71703a7541" ?>
++  <?define CurrDocumentsGUID="e417b6c9-d8cf-4164-b905-9543ade71deb" ?>
++  <?define CurrConfigFileGUID="b311e9ea-e76c-42a6-a7c1-36047a092ad5" ?>
++  <?define CurrStartMenuGUID="0fd17444-4e1e-4c2d-8911-662ca544029a" ?>
++  <?define CurrDesktopGUID="14438a4e-629c-4c2b-bca1-709fd81ebc2b" ?>
++  <?define CurrDocsOnDesktopGUID="386daa5d-4bdd-464a-a010-df65562c3c80" ?>
++  <?define CurrStartupGUID="dfee2d3e-5d4a-41d8-b78a-6e59b8c64dec" ?>
++  <?define CurrLocalProgramsGUID="a4a11482-156d-43c7-8c87-bb52c3d410f4" ?>
+ 
+-  <?define VidaliaVersion="@VER_MAJOR@.@VER_MINOR@.@VER_PATCH@" ?>
+-  <?define VidaliaUpgradeCode="B7FBFE11-D7CA-4895-A1FB-1D7E065E4D04" ?>
+-  <?define VidaliaProductGuid="B3C22D59-D907-4559-9569-92AAA34DB6F0" ?>
+-  <?define VidaliaDocumentsGuid="6A51C86C-A7D4-407f-9B84-7ADCE016E939" ?>
+-  <?define QtLibraryGuid="00F354CB-B313-4100-8900-11293A66B385" ?>
+-  <?define QtImageFormatPluginsGuid="9A0F1EA5-3A5F-4456-B211-9368C24E22F3" ?>
+-  <?define MinGWLibraryGuid="2287E844-F9CD-4129-8BD0-50D071698194" ?>
+-  <?define OpenSSLLibraryGuid="C3EDC2EC-D0B1-452a-83A6-85B0BC94735B" ?>
+-  <?define MarbleWidgetLibraryGuid="A2968B8D-0E23-4649-B8F3-A988A04F823C" ?>
+-  <?define MarblePluginsGuid="B4665EC1-3082-4fca-AA7E-60512ED62EF6" ?>
+-  <?define MarbleLegendsDataGuid="FA6F733F-8249-4b2b-B978-2AA04E06F5D5" ?>
+-  <?define MarbleBlueMarbleDataGuid="392FEE6B-374A-447a-AECC-0422915305DB" ?>
+-  <?define MarbleCityLightsDataGuid="DBF9FBE7-012D-4457-ABB4-9085F7E784F8" ?>
+-  <?define MarbleMwdbiiDataGuid="56ACE658-6892-408a-91E5-7B5BD23D8829" ?>
+-  <?define MarbleSrtmDataGuid="2C3A9C67-92CB-4fc6-A2F6-AD9118AFD58C" ?>
+-  <?define MarblePlacemarkDataGuid="27D54547-A819-435b-9A0C-13284169A9D9" ?>
+-  <?define MarbleStarsDataGuid="8C5C3F32-67E6-4a4a-9B6C-6D67A6D44D67" ?>
+-  <?define MarbleSvgDataGuid="03E25BCA-4C58-4571-9F17-061D52877714" ?>
+-  <?define UseMarble="@USE_MARBLE@"?>
+-
+-  <Product Name="Vidalia @VERSION@" Id="$(var.VidaliaProductGuid)"
+-           Language="1033" Codepage="1252"
+-           Version="$(var.VidaliaVersion)" 
++  <Product Name="Vidalia $(var.ThisProductVersionDisp)" Id="$(var.CurrProductGUID)"
++           Version="$(var.ThisProductVersion)"
+            Manufacturer="vidalia-project.net"
+-           UpgradeCode="$(var.VidaliaUpgradeCode)">
++           Language="!(loc.LCID)"
++           UpgradeCode="$(var.UpgradeCode)">
+     
+     <Package Id="*" Keywords="Installer"
+-             Description="Vidalia @VERSION@ Installer"
++             Description="Vidalia $(var.ThisProductVersionDisp) Installer"
+              Manufacturer="vidalia-project.net"
+-             InstallerVersion="100" Compressed="yes"
+-             Languages="1033"  SummaryCodepage="1252" />
++             InstallerVersion="200" Compressed="yes"
++             InstallPrivileges="limited" />
++
++    <!-- Properties used for variable replacement in translations. -->
++    <Property Id="LANGUAGE_CODE" Value="!(loc.LanguageCode)" />
++    <Property Id="VIDALIA_NAME" Value="Vidalia" />
++    <Property Id="VIDALIA_DESC" Value="Vidalia $(var.VidaliaVersion)" />
++    <Property Id="TOR_NAME" Value="Tor" />
++    <Property Id="TOR_DESC" Value="Tor $(var.TorVersion)" />
++    <Property Id="PRIVOXY_NAME" Value="Privoxy" />
++    <Property Id="PRIVOXY_DESC" Value="Privoxy $(var.PrivoxyVersion)" />
++    <Property Id="POLIPO_NAME" Value="Polipo" />
++    <Property Id="POLIPO_DESC" Value="Polipo $(var.PolipoVersion)" />
++    <Property Id="TORBUTTON_NAME" Value="Torbutton" />
++    <Property Id="TORBUTTON_DESC" Value="Torbutton $(var.TorbuttonVersion)" />
++    <Property Id="BUNDLE_NAME" Value="Vidalia Bundle" />
++    <Property Id="BUNDLE_DESC" Value="Vidalia Bundle $(var.VidaliaBundleVersion)" />
+ 
+     <Media Id="1" Cabinet="Vidalia.cab" CompressionLevel="high"
+            EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+-    <Property Id="DiskPrompt" Value="Vidalia @VERSION@ Installation [1]" />
+-
+-    <Upgrade Id="$(var.VidaliaUpgradeCode)">
+-      <UpgradeVersion Property="UPGRADEFOUND" OnlyDetect="no"
+-                      Minimum="0.0.1" IncludeMinimum="yes"
+-                      Maximum="$(var.VidaliaVersion)" IncludeMaximum="no" />
++    <Property Id="DiskPrompt" Value="Vidalia $(var.ThisProductVersionDisp) Installation Volume [1]" />
++    <Property Id="ALLUSERS" Secure="yes"/>
++    <Property Id="ReinstallModeText">omus</Property>
++
++    <!-- To avoid placing shortcuts all over the desktop / start menu during a
++    silent installation the NOSC=1 option can be passed to omit shortcuts.
++    This is useful if bundled with other applications like Vidalia that manage
++    configuration and Tor related processes themselves.
++      -->
++    <Property Id="NOSC" Secure="yes"/>
++
++    <!-- Associate this package with the upgrade code for this series
++    to ensure that upgrade installations by Thandy or other means work
++    as expected.
++    The OnlyDetect option must be false to ensure that existing files
++    from an older version are removed and replaced with current files.
++      -->
++    <Upgrade Id="$(var.UpgradeCode)">
++      <UpgradeVersion
++        Property="UPGRADEFOUND"
++        OnlyDetect="no"
++        Minimum="0.0.1"
++        IncludeMinimum="yes"
++        Maximum="$(var.ThisProductVersion)"
++        IncludeMaximum="no"
++      />
+     </Upgrade>
+ 
+-    <!-- Define the target installation directory hierarchy -->
++
+     <Directory Id="TARGETDIR" Name="SourceDir">
+-      <Directory Id="ProgramFilesFolder" Name="ProgramFilesDir">
+-        <Directory Id="INSTALLDIR" Name="Vidalia">
+-          <?if $(var.UseMarble) = "ON"?>
+-            <Directory Id="PluginsDir" Name="plugins">
+-              <Directory Id="QtPluginsDir" Name="qt">
+-                <Directory Id="QtImageFormatPluginsDir" Name="imageformats" />
+-              </Directory>
+-              <Directory Id="MarblePluginsDir" Name="marble" />
+-            </Directory>
+-            <Directory Id="MarbleDataDir" Name="data">
+-              <Directory Id="MarbleMapsDir" Name="maps">
+-                <Directory Id="MarbleEarthMapsDir" Name="earth">
+-                  <Directory Id="MarbleBlueMarbleDataDir" Name="bluemarble" />
+-                  <Directory Id="MarbleCityLightsDataDir" Name="citylights" />
+-                  <Directory Id="MarbleSrtmDataDir" Name="srtm" />
+-                </Directory>
+-              </Directory>
+-              <Directory Id="MarbleMwdbiiDir" Name="mwdbii" />
+-              <Directory Id="MarblePlacemarkDataDir" Name="placemarks" />
+-              <Directory Id="MarbleStarsDataDir" Name="stars" />
+-              <Directory Id="MarbleSvgDataDir" Name="svg" />
+-            </Directory>
+-          <?endif?>
+-        </Directory>
+-      </Directory>
+-    </Directory>
++      <Directory Id="LocalAppDataFolder" Name="LocalAppData">
++       <Directory Id="LocalProgramsFolder" Name="Programs">
+ 
+-    <DirectoryRef Id="INSTALLDIR">
+-      <!-- Main Vidalia application files -->
+-      <Component Id="VidaliaExecutable" Guid="*">
+-        <File Id="VidaliaExe" DiskId="1"
+-              Name="vidalia.exe" Source="@Vidalia_BINARY_DIR@\src\vidalia\vidalia.exe" />
+-      </Component>
++         <!-- Until proper support for per-user installs is available we manage Programs folder.
++         Note that this directory will be left in place if it is in use by any other app.
++           -->
++         <Component Id="LocalProgramsFolderRef" Guid="$(var.CurrLocalProgramsGUID)">
++           <CreateFolder/>
++           <RemoveFolder Id="RemoveLocalProgramsFolder" On="uninstall" />
++           <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++             <RegistryValue Name="LocalProgramsFolderRef" Value="1" Type="integer" KeyPath="yes" />
++           </RegistryKey>
++         </Component>
++
++         <Directory Id="LocalProgramsInstDir" Name="Vidalia">
++
++          <!-- Main Vidalia application files -->
++          <Component Id="VidaliaExecutable" Guid="$(var.CurrExecutableGUID)">
++            <CreateFolder/>
++            <RemoveFolder Id="RemoveLocalProgramsInstDir" On="uninstall" />
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="Version" Value="$(var.ThisProductVersion)" Type="string" KeyPath="yes" />
++            </RegistryKey>
++            <File Id="VidaliaExe" DiskId="1"
++                  Name="vidalia.exe" Source="bin\vidalia-2d.exe" />
++<?ifndef NOMARBLE ?>
++            <File Id="VidaliaMarbleExe" DiskId="1"
++                  Name="vidalia-marble.exe" Source="bin\vidalia-marble.exe" />
++<?endif?>
++          </Component>
+ 
+-      <!-- Vidalia-related documents -->
+-      <Component Id="VidaliaDocuments" Guid="$(var.VidaliaDocumentsGuid)">
+-        <File Id="VidaliaReadme" DiskId="1"
+-              Name="README" Source="@Vidalia_SOURCE_DIR@\README" />
+-        <File Id="VidaliaCredits" DiskId="1"
+-              Name="CREDITS" Source="@Vidalia_SOURCE_DIR@\CREDITS" />
+-        <File Id="VidaliaChangeLog" DiskId="1"
+-              Name="CHANGELOG" Source="@Vidalia_SOURCE_DIR@\CHANGELOG" />
+-        <File Id="VidaliaLicense" DiskId="1"
+-              Name="LICENSE" Source="@Vidalia_SOURCE_DIR@\LICENSE" />
+-        <File Id="VidaliaLicenseGplV2" DiskId="1"
+-              Name="LICENSE-GPLV2" Source="@Vidalia_SOURCE_DIR@\LICENSE-GPLV2" />
+-        <File Id="VidaliaLicenseGplV3" DiskId="1"
+-              Name="LICENSE-GPLV3" Source="@Vidalia_SOURCE_DIR@\LICENSE-GPLV3" />
+-        <File Id="VidaliaLicenseLgplV3" DiskId="1"
+-              Name="LICENSE-LGPLV3" Source="@Vidalia_SOURCE_DIR@\LICENSE-LGPLV3" />
+-        <File Id="VidaliaLicenseOpenSSL" DiskId="1"
+-              Name="LICENSE-OPENSSL" Source="@Vidalia_SOURCE_DIR@\LICENSE-OPENSSL" />
+-      </Component>
++          <!-- Qt-related library files -->
++          <Component Id="QtLibrary" Guid="$(var.CurrQtLibsGUID)">
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="QtLibrary" Value="1" Type="integer" KeyPath="yes" />
++            </RegistryKey>
++            <File Id="QtCore4Dll" DiskId="1"
++                  Name="QtCore4.dll" Source="bin\QtCore4.dll" />
++            <File Id="QtGui4Dll" DiskId="1"
++                  Name="QtGui4.dll" Source="bin\QtGui4.dll" />
++            <File Id="QtNetwork4Dll" DiskId="1"
++                  Name="QtNetwork4.dll" Source="bin\QtNetwork4.dll" />
++            <File Id="QtXml4Dll" DiskId="1"
++                  Name="QtXml4.dll" Source="bin\QtXml4.dll" />
++            <File Id="QtSvg4Dll" DiskId="1"
++                  Name="QtSvg4.dll" Source="bin\QtSvg4.dll" />
++<?ifndef NOMARBLE ?>
++            <File Id="MarbleQtWidgetDll" DiskId="1"
++              Name="libmarblewidget.dll" Source="bin/libmarblewidget.dll" />
++<?endif ?>
++          </Component>
+ 
+-      <!-- Qt-related library files -->
+-      <Component Id="QtLibrary" Guid="$(var.QtLibraryGuid)">
+-        <File Id="QtCore4Dll" DiskId="1"
+-              Name="QtCore4.dll" Source="@QT_BINARY_DIR@\QtCore4.dll" />
+-        <File Id="QtGui4Dll" DiskId="1"
+-              Name="QtGui4.dll" Source="@QT_BINARY_DIR@\QtGui4.dll" />
+-        <File Id="QtNetwork4Dll" DiskId="1"
+-              Name="QtNetwork4.dll" Source="@QT_BINARY_DIR@\QtNetwork4.dll" />
+-        <File Id="QtXml4Dll" DiskId="1"
+-              Name="QtXml4.dll" Source="@QT_BINARY_DIR@\QtXml4.dll" />
+-        <?if $(var.UseMarble) = "ON"?>
+-          <File Id="QtSvg4Dll" DiskId="1"
+-                Name="QtSvg4.dll" Source="@QT_BINARY_DIR@\QtSvg4.dll" />
+-          <File Id="QtWebKit4Dll" DiskId="1"
+-                Name="QtWebKit4.dll" Source="@QT_BINARY_DIR@\QtWebKit4.dll" />
+-        <?endif?>
+-      </Component>
++          <!-- MinGW-related library files -->
++          <Component Id="MinGWLibrary" Guid="$(var.CurrMingwLibsGUID)">
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="MinGWLibrary" Value="1" Type="integer" KeyPath="yes" />
++            </RegistryKey>
++            <File Id="MinGWDll" DiskId="1"
++                  Name="mingwm10.dll" Source="bin\mingwm10.dll" />
++            <File Id="gnurxdll" DiskId="1"
++                  Name="libgnurx-0.dll" Source="bin\libgnurx-0.dll" />
++          </Component>
+ 
+-      <!-- MinGW-related library files -->
+-      <Component Id="MinGWLibrary" Guid="$(var.MinGWLibraryGuid)">
+-        <File Id="MinGWDll" DiskId="1"
+-              Name="mingwm10.dll" Source="@MINGW_BINARY_DIR@\mingwm10.dll" />
+-      </Component>
++          <!-- OpenSSL-related library files -->
++          <Component Id="OpenSSLLibrary" Guid="$(var.CurrCryptoLibsGUID)">
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="OpenSSLLibrary" Value="1" Type="integer" KeyPath="yes" />
++            </RegistryKey>
++            <File Id="ssleay32dll" DiskId="1"
++                  Name="ssleay32-0.9.8.dll" Source="bin\ssleay32-0.9.8.dll" />
++            <File Id="cryptoeay32dll" DiskId="1"
++                  Name="cryptoeay32-0.9.8.dll" Source="bin\cryptoeay32-0.9.8.dll" />
++            <File Id="zlibdll" DiskId="1"
++                  Name="zlib1.dll" Source="bin\zlib1.dll" />
++          </Component>
+ 
+-      <!-- OpenSSL-related library files -->
+-      <Component Id="OpenSSLLibrary" Guid="$(var.OpenSSLLibraryGuid)">
+-        <File Id="ssleay32dll" DiskId="1"
+-              Name="ssleay32.dll" Source="@OPENSSL_BINARY_DIR@\ssleay32.dll" />
+-      </Component>
+-      
+-      <?if $(var.UseMarble) = "ON"?>
+-        <!-- Marble-related library files -->
+-        <Component Id="MarbleWidgetLibrary" Guid="$(var.MarbleWidgetLibraryGuid)">
+-          <File Id="MarbleWidgetDll" DiskId="1"
+-                Name="libmarblewidget.dll" Source="@MARBLEWIDGET_LIBRARY@" />
+-        </Component>
+-      <?endif?>
+-    </DirectoryRef>
++          <!-- Place this here until argument parsing with quoted escapes works as expected. -->
++          <Component Id="PolipoConfig" Guid="$(var.CurrPolipoConfigGUID)">
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="PolipoConfigFile" Value="1" Type="integer" KeyPath="yes" />
++            </RegistryKey>
++            <File
++              Id="PolipoConfigFile"
++              Name="polipocfg.txt"
++              Source="pkg/win32/polipo.conf"
++              Vital="yes"
++              ReadOnly="no"
++              DiskId="1"
++            />
++          </Component>
+ 
+-    <!-- Qt-related plugin files -->
+-    <?if $(var.UseMarble) = "ON"?>
+-      <DirectoryRef Id="QtImageFormatPluginsDir">
+-        <Component Id="QtImageFormatPlugins" Guid="$(var.QtImageFormatPluginsGuid)">
+-          <File Id="QJpeg4Dll" DiskId="1"
+-                Name="qjpeg4.dll" Source="@QT_PLUGINS_DIR@\imageformats\qjpeg4.dll" />
+-        </Component>
+-      </DirectoryRef>
++         </Directory>
++        </Directory>
+ 
+-      <!-- Marble-related plugin files -->
+-      <DirectoryRef Id="MarblePluginsDir">
+-        <Component Id="MarblePlugins" Guid="$(var.MarblePluginsGuid)">
+-          <File Id="MarbleOverviewMapPlugin" DiskId="1"
+-                Name="libMarbleOverviewMap.dll" Source="@MARBLE_OVERVIEWMAP_PLUGIN@" />
+-          <File Id="MarbleStarsPlugin" DiskId="1"
+-                Name="libMarbleStarsPlugin.dll" Source="@MARBLE_STARS_PLUGIN@" />
+-        </Component>
+-      </DirectoryRef>
+-            
+-      <!-- Marble-related data files -->
+-      <DirectoryRef Id="MarbleDataDir">
+-        <Component Id="MarbleLegendsData" Guid="$(var.MarbleLegendsDataGuid)">
+-          <File Id="LandColorsLegend" DiskId="1"
+-                Name="landcolors.leg" Source="@MARBLE_DATA_DIR@\landcolors.leg" />
+-          <File Id="SeaColorsLegend" DiskId="1"
+-                Name="seacolors.leg" Source="@MARBLE_DATA_DIR@\seacolors.leg" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleBlueMarbleDataDir">
+-        <Component Id="MarbleBlueMarbleData" Guid="$(var.MarbleBlueMarbleDataGuid)">
+-          <File Id="MarbleBlueMarbleDgml" DiskId="1"
+-                Name="bluemarble.dgml" Source="@MARBLE_DATA_DIR@\maps\earth\bluemarble\bluemarble.dgml" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleCityLightsDataDir">
+-        <Component Id="MarbleCityLightsData" Guid="$(var.MarbleCityLightsDataGuid)">
+-          <File Id="MarbleCityLightsDgml" DiskId="1"
+-                Name="citylights.dgml" Source="@MARBLE_DATA_DIR@\maps\earth\citylights\citylights.dgml" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleSrtmDataDir">
+-        <Component Id="MarbleSrtmData" Guid="$(var.MarbleSrtmDataGuid)">
+-          <File Id="MarbleSrtmDgml" DiskId="1"
+-                Name="srtm.dgml" Source="@MARBLE_DATA_DIR@\maps\earth\srtm\srtm.dgml" />
+-          <File Id="MarbleSrtmJpg" DiskId="1"
+-                Name="srtm.jpg" Source="@MARBLE_DATA_DIR@\maps\earth\srtm\srtm.jpg" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleMwdbiiDir">
+-        <Component Id="MarbleMwdbiiData" Guid="$(var.MarbleMwdbiiDataGuid)">
+-          <File Id="DatelinePnt" DiskId="1"
+-                Name="DATELINE.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\DATELINE.PNT" />
+-          <File Id="PAustPnt" DiskId="1"
+-                Name="PAUST.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PAUST.PNT" />
+-          <File Id="PBorderPnt" DiskId="1"
+-                Name="PBORDER.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PBORDER.PNT" />
+-          <File Id="PCanProvPnt" DiskId="1"
+-                Name="PCANPROV.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PCANPROV.PNT" />
+-          <File Id="PCoastPnt" DiskId="1"
+-                Name="PCOAST.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PCOAST.PNT" />
+-          <File Id="PDiffBorderPnt" DiskId="1"
+-                Name="PDIFFBORDER.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PDIFFBORDER.PNT" />
+-          <File Id="PGlacierPnt" DiskId="1"
+-                Name="PGLACIER.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PGLACIER.PNT" />
+-          <File Id="PIslandPnt" DiskId="1"
+-                Name="PISLAND.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PISLAND.PNT" />
+-          <File Id="PLakePnt" DiskId="1"
+-                Name="PLAKE.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PLAKE.PNT" />
+-          <File Id="PLakeIslandPnt" DiskId="1"
+-                Name="PLAKEISLAND.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PLAKEISLAND.PNT" />
+-          <File Id="PMexicoPnt" DiskId="1"
+-                Name="PMEXICO.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PMEXICO.PNT" />
+-          <File Id="PUsa48DiffPnt" DiskId="1"
+-                Name="PUSA48.DIFF.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PUSA48.DIFF.PNT" />
+-          <File Id="PUsa48Pnt" DiskId="1"
+-                Name="PUSA48.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\PUSA48.PNT" />
+-          <File Id="RiverPnt" DiskId="1"
+-                Name="RIVER.PNT" Source="@MARBLE_DATA_DIR@\mwdbii\RIVER.PNT" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarblePlacemarkDataDir">
+-        <Component Id="MarblePlacemarkData" Guid="$(var.MarblePlacemarkDataGuid)">
+-          <File Id="BasePlacemarksCache" DiskId="1"
+-                Name="baseplacemarks.cache" Source="@MARBLE_DATA_DIR@\placemarks\baseplacemarks.cache" />
+-          <File Id="BoundaryPlacemarksCache" DiskId="1"
+-                Name="boundaryplacemarks.cache" Source="@MARBLE_DATA_DIR@\placemarks\boundaryplacemarks.cache" />
+-          <File Id="ElevPlacemarksCache" DiskId="1"
+-                Name="elevplacemarks.cache" Source="@MARBLE_DATA_DIR@\placemarks\elevplacemarks.cache" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleStarsDataDir">
+-        <Component Id="MarbleStarsData" Guid="$(var.MarbleStarsDataGuid)">
+-          <File Id="StarsDat" DiskId="1"
+-                Name="stars.dat" Source="@MARBLE_DATA_DIR@\stars\stars.dat" />
+-        </Component>
+-      </DirectoryRef>
+-      <DirectoryRef Id="MarbleSvgDataDir">
+-        <Component Id="MarbleSvgData" Guid="$(var.MarbleSvgDataGuid)">
+-          <File Id="WorldMapSvg" DiskId="1"
+-                Name="worldmap.svg" Source="@MARBLE_DATA_DIR@\svg\worldmap.svg" />
+-        </Component>
+-      </DirectoryRef>
+-      <ComponentGroup Id="MarbleData">
+-        <ComponentRef Id="MarbleLegendsData" />
+-        <ComponentRef Id="MarbleBlueMarbleData" />
+-        <ComponentRef Id="MarbleCityLightsData" />
+-        <ComponentRef Id="MarbleSrtmData" />
+-        <ComponentRef Id="MarbleMwdbiiData" />
+-        <ComponentRef Id="MarblePlacemarkData" />
+-        <ComponentRef Id="MarbleStarsData" />
+-        <ComponentRef Id="MarbleSvgData" />
+-      </ComponentGroup>
+-    <?endif?>
++        <Directory Id="INSTALLDIR" Name="Vidalia">
++          <Component Id="GeoIPCache" Guid="$(var.CurrGeoIPCacheGUID)">
++            <CreateFolder/>
++            <RemoveFolder Id="RemoveINSTALLDIR" On="uninstall" />
++            <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++              <RegistryValue Name="GeoIPCacheFile" Value="1" Type="integer" KeyPath="yes" />
++            </RegistryKey>
++            <File
++              Id="GeoIPCacheFile"
++              Name="geoip-cache"
++              Source="pkg/geoip-cache"
++              Vital="no"
++              ReadOnly="no"
++              DiskId="1"
++            /> 
++          </Component>
++<?ifndef NOMARBLE ?>
++          <Directory Id="LocalPluginsDir" Name="plugins">
++            <!-- Marble plugin library file -->
++            <Component Id="MarblePlugin" Guid="$(var.CurrMarblePluginGUID)">
++              <CreateFolder/>
++              <RemoveFolder Id="RemoveLocalPluginsDir" On="uninstall" />
++              <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++                <RegistryValue Name="MarblePluginLibrary" Value="1" Type="integer" KeyPath="yes" />
++              </RegistryKey>
++              <File Id="MarbleOverview.dll" DiskId="1"
++                Name="libMarbleOverviewMap.dll" Source="bin/libMarbleOverviewMap.dll" />
++              <File Id="MarbleStars.dll" DiskId="1"
++                Name="libMarbleStarsPlugin.dll" Source="bin/libMarbleStarsPlugin.dll" />
++              <File Id="CompassFloat.dll" DiskId="1"
++                Name="libCompassFloatItem.dll" Source="bin/libCompassFloatItem.dll" />
++              <File Id="MapScaleFloat.dll" DiskId="1"
++                Name="libMapScaleFloatItem.dll" Source="bin/libMapScaleFloatItem.dll" />
++              <File Id="MarbleCrosshairs.dll" DiskId="1"
++                Name="libMarbleCrosshairsPlugin.dll" Source="bin/libMarbleCrosshairsPlugin.dll" />
++              <File Id="MarbleGeoData.dll" DiskId="1"
++                Name="libMarbleGeoDataPlugin.dll" Source="bin/libMarbleGeoDataPlugin.dll" />
++              <File Id="NavigationFloat.dll" DiskId="1"
++                Name="libNavigationFloatItem.dll" Source="bin/libNavigationFloatItem.dll" />
++            </Component>
++            <Directory Id="LocalPluginsDataDir" Name="data">
++              <Component Id="PluginDataDir" Guid="$(var.CurrPluginDataDirGUID)">
++                <CreateFolder/>
++                <RemoveFolder Id="RemoveLocalPluginsDataDir" On="uninstall" />
++                <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++                  <RegistryValue Name="PluginDataDir" Value="1" Type="integer" KeyPath="yes" />
++                </RegistryKey>
++              </Component>
++            </Directory>
++            <Directory Id="LocalPluginsImageFormatsDir" Name="imageformats">
++              <Component Id="PluginImageFormatsDir" Guid="$(var.CurrPluginImageFormatsGUID)">
++                <CreateFolder/>
++                <RemoveFolder Id="RemoveLocalPluginsImageFormatsDir" On="uninstall" />
++                <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
++                  <RegistryValue Name="PluginImageFormatsDir" Value="1" Type="integer" KeyPath="yes" />
++                </RegistryKey>
++                <File Id="qsvg4.dll" DiskId="1"
++                  Name="qsvg4.dll" Source="plugins/imageformats/qsvg4.dll" />
++                <File Id="qjpeg4.dll" DiskId="1"
++                  Name="qjpeg4.dll" Source="plugins/imageformats/qjpeg4.dll" />
++                <File Id="qico4.dll" DiskId="1"
++                  Name="qico4.dll" Source="plugins/imageformats/qico4.dll" />
++              </Component>
++            </Directory>
++          </Directory>
++<?endif ?>
++        </Directory>
++      </Directory>
+ 
+-    <!-- Application shortcuts and menu items -->
+-    <DirectoryRef Id="TARGETDIR">
+       <Directory Id="ProgramMenuFolder" Name="Programs">
+         <Directory Id="ShortcutFolder" Name="Vidalia">
+-          <Component Id="AddVidaliaToStartMenu" Guid="0F2CEE2C-8730-432e-8A8F-E49AF78AF28C">
++          <Component Id="AddVidaliaToStartMenu" Guid="$(var.CurrStartMenuGUID)">
++            <Condition><![CDATA[NOSC <> 1]]> </Condition>
+             <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
+               <RegistryValue Name="StartMenuShortcut" Value="1" Type="integer" KeyPath="yes" />
+             </RegistryKey>
+             <Shortcut Id="VidaliaStartMenuShortcut"
+-                      Name="Vidalia" Target="[INSTALLDIR]vidalia.exe"
+-                      Directory="ShortcutFolder" WorkingDirectory="INSTALLDIR"
++                      Name="Vidalia" Target="[LocalProgramsInstDir]vidalia.exe"
++                      Directory="ShortcutFolder" WorkingDirectory="LocalProgramsInstDir"
+                       Icon="vidalia.ico" IconIndex="0" />
++<?ifndef NOMARBLE ?>
++            <Shortcut Id="VidaliaMarbleStartMenuShortcut"
++                      Name="Vidalia Marble" Target="[LocalProgramsInstDir]vidalia-marble.exe"
++                      Directory="ShortcutFolder" WorkingDirectory="LocalProgramsInstDir"
++                      Icon="vidalia.ico" IconIndex="0" />
++<?endif ?>
+             <RemoveFolder Id="RemoveShortcutFolder" On="uninstall" />
+           </Component>
+         </Directory>
+       </Directory>
+ 
+       <Directory Id="DesktopFolder" Name="Desktop">
+-        <Component Id="AddVidaliaToDesktop" Guid="A7688EE5-4EDE-4429-A2D9-C8B9BD85AB5A">
++        <Component Id="AddVidaliaToDesktop" Guid="$(var.CurrDesktopGUID)">
++          <Condition><![CDATA[NOSC <> 1]]> </Condition>
+           <RegistryKey Root="HKCU" Key="Software\Vidalia" Action="createAndRemoveOnUninstall">
+             <RegistryValue Name="DesktopShortcut" Value="1" Type="integer" KeyPath="yes" />
+           </RegistryKey>
+           <Shortcut Id="VidaliaDesktopShortcut"
+-                    Name="Vidalia" Target="[INSTALLDIR]vidalia.exe"
+-                    Directory="DesktopFolder" WorkingDirectory="INSTALLDIR"
++                    Name="Vidalia" Target="[LocalProgramsInstDir]vidalia.exe"
++                    Directory="DesktopFolder" WorkingDirectory="LocalProgramsInstDir"
++                    Icon="vidalia.ico" IconIndex="0" />
++<?ifndef NOMARBLE ?>
++          <Shortcut Id="VidaliaMarbleDesktopShortcut"
++                    Name="Vidalia Marble" Target="[LocalProgramsInstDir]vidalia-marble.exe"
++                    Directory="DesktopFolder" WorkingDirectory="LocalProgramsInstDir"
+                     Icon="vidalia.ico" IconIndex="0" />
++<?endif ?>
+         </Component>
+       </Directory>
+ 
+-      <Component Id="AddToStartupItems" Guid="E7BC3F3C-86BA-4a08-966C-F3F8D8CB3AF4">
++      <Component Id="AddToStartupItems" Guid="$(var.CurrStartupGUID)">
++        <Condition><![CDATA[NOSC <> 1]]> </Condition>
+         <RegistryKey Root="HKCU"
+                      Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                      Action="createAndRemoveOnUninstall">
+-          <RegistryValue Name="Vidalia" Value='"[INSTALLDIR]vidalia.exe"' Type="string" />
++          <RegistryValue Name="Vidalia" Value='"[LocalProgramsInstDir]vidalia.exe"' Type="string" />
+         </RegistryKey>
+       </Component>
+-    </DirectoryRef>
++    </Directory>
+ 
+     <!-- Build up the feature hierarchy -->
+     <Feature Id="Complete" Title="Vidalia"
+              Level="1" Display="expand" ConfigurableDirectory="INSTALLDIR"
+-             Description="Vidalia is application that helps you control, monitor, and configure the Tor software.">
+-      <Feature Id="MainApplication" Title="Vidalia @VERSION@"
++             Description="!(loc.VidaliaAppDesc)">
++      <Feature Id="MainApplication" Title="Vidalia $(var.ThisProductVersionDisp)"
+                AllowAdvertise="no" Absent="disallow" Level="1"
+                Description="Main application">
++        <ComponentRef Id="LocalProgramsFolderRef" />
+         <ComponentRef Id="VidaliaExecutable" />
+-        <ComponentRef Id="VidaliaDocuments" />
+         <ComponentRef Id="QtLibrary" />
+         <ComponentRef Id="MinGWLibrary" />
+         <ComponentRef Id="OpenSSLLibrary" />
+-        <?if $(var.UseMarble) = "ON"?>
+-          <ComponentRef Id="QtImageFormatPlugins" />
+-          <ComponentRef Id="MarbleWidgetLibrary" />
+-          <ComponentRef Id="MarblePlugins" />
+-          <ComponentGroupRef Id="MarbleData"/>
+-        <?endif?>
++        <ComponentRef Id="GeoIPCache" />
++        <ComponentRef Id="PolipoConfig" />
++<?ifndef NOMARBLE ?>
++        <ComponentRef Id="MarblePlugin" />
++        <ComponentRef Id="PluginDataDir" />
++        <ComponentRef Id="PluginImageFormatsDir" />
++<?endif ?>
+       </Feature>
+       <Feature Id="Shortcuts" Title="Shortcuts"
+                AllowAdvertise="no" Absent="allow" Level="1"
+-               Description="Add a shortcut to Vidalia to your Start menu or Desktop.">
++               Description="!(loc.VidaliaShortcutsDesc)">
+         <Feature Id="StartMenuShortcuts" Title="Add to Start menu"
+                  AllowAdvertise="no" Absent="allow" Level="1"
+-                 Description="Add Vidalia to your Start menu">
++                 Description="!(loc.VidaliaShortcutsDesc)">
+           <ComponentRef Id="AddVidaliaToStartMenu" />
+         </Feature>
+         <Feature Id="DesktopShortcuts" Title="Add to Desktop"
+                  AllowAdvertise="no" Absent="allow" Level="1"
+-                 Description="Add Vidalia to your Desktop">
++                 Description="!(loc.VidaliaShortcutsDesc)">
+           <ComponentRef Id="AddVidaliaToDesktop" />
+         </Feature>
+         <Feature Id="RunAtStartup" Title="Run at Startup"
+                  AllowAdvertise="no" Absent="allow" Level="1"
+-                 Description="Run Vidalia automatically when your system starts">
++                 Description="!(loc.VidaliaStartupDesc)">
+           <ComponentRef Id="AddToStartupItems" />
+         </Feature>
+       </Feature>
+     </Feature>
+ 
+-    <!-- Upgrade installation sequence -->
++    <!-- Upgrade installation sequence. -->
+     <InstallExecuteSequence>
+       <RemoveExistingProducts After="InstallValidate" />
+     </InstallExecuteSequence>
+ 
+     <!-- Set the UI options -->
+     <UIRef Id="WixUI_Custom" />
+-    <Icon Id="vidalia.ico" SourceFile="@Vidalia_SOURCE_DIR@\src\vidalia\res\icons\vidalia.ico" />
++    <Icon Id="vidalia.ico" SourceFile="src\vidalia\res\icons\vidalia.ico" />
++    <WixVariable Id="WixUIBannerBmp" Value="pkg\win32\default-header.bmp" />
++    <WixVariable Id="WixUIDialogBmp" Value="pkg\win32\default-welcome.bmp" />
+   </Product>
+ </Wix>
+diff -Naur a/src/common/win32.cpp b/src/common/win32.cpp
+--- a/src/common/win32.cpp	2009-02-16 22:53:13.437184000 +0000
++++ b/src/common/win32.cpp	2009-05-04 08:16:00.610349670 +0000
+@@ -67,16 +67,20 @@
+ QString
+ win32_program_files_folder()
+ {
+-  return win32_get_folder_location(
+-     CSIDL_PROGRAM_FILES, QDir::rootPath() + "\\Program Files");
++  QString local_appdata = win32_get_folder_location(CSIDL_LOCAL_APPDATA, "");
++  if (local_appdata != "")
++    return local_appdata + "\\Programs";
++  return win32_get_folder_location(CSIDL_PROGRAM_FILES, QDir::rootPath() + "\\Program Files");
+ }
+ 
+ /** Gets the location of the user's %APPDATA% folder. */
+ QString
+ win32_app_data_folder()
+ {
+-  return win32_get_folder_location(
+-      CSIDL_APPDATA, QDir::homePath() + "\\Application Data");
++  QString local_appdata = win32_get_folder_location(CSIDL_LOCAL_APPDATA, "");
++  if (local_appdata != "")
++    return local_appdata;
++  return win32_get_folder_location(CSIDL_APPDATA, QDir::homePath() + "\\Application Data");
+ }
+ 
+ /** Returns the value in keyName at keyLocation. 
+diff -Naur a/src/torcontrol/torcontrol.cpp b/src/torcontrol/torcontrol.cpp
+--- a/src/torcontrol/torcontrol.cpp	2009-02-24 03:20:58.105033000 +0000
++++ b/src/torcontrol/torcontrol.cpp	2009-05-04 08:16:00.634352824 +0000
+@@ -57,6 +57,12 @@
+ /** Default destructor */
+ TorControl::~TorControl()
+ {
++  /* In Tor VM mode we only send shutdown on exit */
++  if (_controlConn->isConnected()) {
++    ControlCommand cmd("SIGNAL");
++    cmd.addArgument("SHUTDOWN");
++    _controlConn->send(cmd, 0);
++  }
+   /* Disconnect the control socket */
+   if (isConnected()) {
+     disconnect();
+@@ -73,16 +79,23 @@
+ void
+ TorControl::start(const QString &tor, const QStringList &args)
+ {
++  if (tor.length() == 0) {
++    _torProcess = 0;
++    emit started();
++    return;
++  }
+   if (isRunning()) {
+     emit started();
+   } else {
+ #if defined(Q_OS_WIN32)
+     /* If the Tor service is installed, run that. Otherwise, start a new
+      * Tor process. */
+-    if (TorService::isSupported() && _torService->isInstalled())
++    if (TorService::isSupported() && _torService->isInstalled()) {
+       _torService->start();
+-    else
++    }
++    else {
+       _torProcess->start(expand_filename(tor), args);
++    }
+ #else
+     /* Start a new Tor process */
+     _torProcess->start(expand_filename(tor), args);
+@@ -95,11 +108,17 @@
+ TorControl::stop(QString *errmsg)
+ {
+   bool rc = false;
+-  if (_controlConn->isConnected())
+-    rc = signal(TorSignal::Halt, errmsg);
+-  if (!rc)
+-    rc = _torProcess->stop(errmsg);
+-  return rc;
++  if (_torProcess) {
++    if (_controlConn->isConnected())
++      rc = signal(TorSignal::Halt, errmsg);
++    if (!rc)
++      rc = _torProcess->stop(errmsg);
++    return rc;
++  }
++  else {
++    disconnect();
++  }
++  return true;
+ }
+ 
+ /** Emits a signal that the Tor process stopped */
+@@ -118,6 +137,7 @@
+ bool
+ TorControl::isVidaliaRunningTor()
+ {
++  if (!_torProcess) { return false; }
+   return (_torProcess->state() != QProcess::NotRunning);
+ }
+ 
+@@ -125,8 +145,11 @@
+ bool
+ TorControl::isRunning()
+ {
+-  return (_torProcess->state() != QProcess::NotRunning
+-            || _controlConn->isConnected());
++  if (!_torProcess)
++    return true;
++  if (_controlConn->isConnected())
++    return true;
++  return (_torProcess->state() != QProcess::NotRunning);
+ }
+ 
+ /** Called when Tor has printed a log message to stdout. */
+@@ -454,6 +477,10 @@
+   cmd.addArgument(TorSignal::toString(sig));
+ 
+   if (sig == TorSignal::Shutdown || sig == TorSignal::Halt) {
++    if (!_torProcess) {
++      _controlConn->disconnect();
++      return true;
++    }
+     /* Tor closes the connection before giving us a response to any commands
+      * asking it to stop running, so don't try to get a response. */
+     return _controlConn->send(cmd, errmsg);
+diff -Naur a/src/vidalia/config/torsettings.cpp b/src/vidalia/config/torsettings.cpp
+--- a/src/vidalia/config/torsettings.cpp	2009-01-30 05:20:24.536180000 +0000
++++ b/src/vidalia/config/torsettings.cpp	2009-05-04 08:16:00.642352223 +0000
+@@ -61,16 +61,28 @@
+ {
+ #if defined(Q_OS_WIN32)
+   QString programFiles = win32_program_files_folder();
++  QString appData = win32_app_data_folder();
+   if (QFileInfo(programFiles + "\\Vidalia Bundle\\Tor\\tor.exe").exists())
+     setDefault(SETTING_TOR_EXECUTABLE,
+                programFiles + "\\Vidalia Bundle\\Tor\\tor.exe");
+-  else
++  else if (QFileInfo(programFiles + "\\Tor\\tor.exe").exists())
+     setDefault(SETTING_TOR_EXECUTABLE, programFiles + "\\Tor\\tor.exe");
++  else
++    setDefault(SETTING_TOR_EXECUTABLE, "");
+ #else
+   setDefault(SETTING_TOR_EXECUTABLE, "tor");
+ #endif
+ 
+-  setDefault(SETTING_TORRC,         Vidalia::dataDirectory() + "/torrc");
++#if defined(Q_OS_WIN32)
++  if (QFileInfo(appData + "\\Tor\\torrc.txt").exists())
++    setDefault(SETTING_TORRC, appData + "\\Tor\\torrc.txt");
++  else if (QFileInfo(appData + "\\Vidalia\\torrc.txt").exists())
++    setDefault(SETTING_TORRC, appData + "\\Vidalia\\torrc.txt");
++  else
++    setDefault(SETTING_TORRC,         Vidalia::dataDirectory() + "/torrc");
++#else
++   setDefault(SETTING_TORRC,         Vidalia::dataDirectory() + "/torrc");
++#endif
+   setDefault(SETTING_CONTROL_ADDR,  "127.0.0.1");
+   setDefault(SETTING_CONTROL_PORT,  9051);
+   setDefault(SETTING_AUTH_METHOD,   toString(DEFAULT_AUTH_METHOD));
+@@ -88,6 +100,9 @@
+ {
+   QHash<QString, QString> conf;
+   QString hashedPassword;
++  QString tor = localValue(SETTING_TOR_EXECUTABLE).toString();
++  if (tor.isEmpty())
++    return (true);
+ 
+   conf.insert(SETTING_CONTROL_PORT,
+               localValue(SETTING_CONTROL_PORT).toString());
+@@ -104,9 +119,12 @@
+                           ? hashPassword(randomPassword())
+                           : hashPassword(getControlPassword());
+       if (hashedPassword.isEmpty()) {
++#if 0
+         if (errmsg)
+           *errmsg =  tr("Failed to hash the control password.");
+         return false;
++#endif
++return true;
+       }
+       conf.insert(TOR_ARG_COOKIE_AUTH,    "0");
+       conf.insert(TOR_ARG_HASHED_PASSWORD, hashedPassword);
+@@ -139,7 +157,7 @@
+ {
+   QString tor = localValue(SETTING_TOR_EXECUTABLE).toString();
+   if (tor.isEmpty()) /* Don't let the Tor executable name be empty */
+-    tor = defaultValue(SETTING_TOR_EXECUTABLE).toString();
++    return tor;
+   return QDir::convertSeparators(tor);
+ }
+ 
+@@ -156,8 +174,10 @@
+ {
+   QString torrc;
+   TorControl *tc = torControl();
++#if 0
+   if (tc && tc->isConnected() && tc->getInfo("config-file", torrc))
+     return QDir::convertSeparators(torrc);
++#endif
+   return QDir::convertSeparators(localValue(SETTING_TORRC).toString());
+ }
+ 
+diff -Naur a/src/vidalia/config/vidaliasettings.cpp b/src/vidalia/config/vidaliasettings.cpp
+--- a/src/vidalia/config/vidaliasettings.cpp	2009-02-03 02:09:39.844750000 +0000
++++ b/src/vidalia/config/vidaliasettings.cpp	2009-05-04 08:16:00.658349562 +0000
+@@ -71,9 +71,16 @@
+   setDefault(SETTING_SHOW_MAINWINDOW_AT_START, true);
+   setDefault(SETTING_BROWSER_EXECUTABLE, "");
+   setDefault(SETTING_IM_EXECUTABLE, "");
+-  setDefault(SETTING_RUN_PROXY_AT_START, false);
+-  setDefault(SETTING_PROXY_EXECUTABLE, "");
+-  setDefault(SETTING_PROXY_EXECUTABLE_ARGUMENTS, QStringList());
++  setDefault(SETTING_RUN_PROXY_AT_START, true);
++#if defined(Q_WS_WIN)
++  QString programFiles = win32_program_files_folder();
++  QString appData = win32_app_data_folder();
++  setDefault(SETTING_PROXY_EXECUTABLE, programFiles + "\\Polipo\\polipo.exe");
++  setDefault(SETTING_PROXY_EXECUTABLE_ARGUMENTS, QString("-c polipocfg.txt").split(" "));
++#else
++  setDefault(SETTING_PROXY_EXECUTABLE, "polipo.exe");
++  setDefault(SETTING_PROXY_EXECUTABLE_ARGUMENTS, QString("-c polipo.conf").split(" "));
++#endif
+ #if defined(Q_WS_WIN)
+   setDefault(SETTING_CHECK_FOR_UPDATES, true);
+ #else
+diff -Naur a/src/vidalia/mainwindow.cpp b/src/vidalia/mainwindow.cpp
+--- a/src/vidalia/mainwindow.cpp	2009-02-23 01:36:04.102244000 +0000
++++ b/src/vidalia/mainwindow.cpp	2009-05-04 08:16:00.694347004 +0000
+@@ -127,6 +127,7 @@
+   createTrayIcon();
+   /* Start with Tor initially stopped */
+   _status = Unset;
++  _isTorExt = false;
+   _isVidaliaRunningTor = false;
+   updateTorStatus(Stopped);
+   
+@@ -332,7 +333,7 @@
+   if (settings.isAutoUpdateEnabled()) {
+     QDateTime lastCheckedAt = settings.lastCheckedForUpdates();
+     if (UpdateProcess::shouldCheckForUpdates(lastCheckedAt)) {
+-      if (settings.runTorAtStart() && ! _torControl->circuitEstablished()) {
++      if (! _torControl->circuitEstablished()) {
+         /* We started Tor but it hasn't bootstrapped yet, so give it a bit
+          * before we decide to check for updates. If Tor manages to build a
+          * circuit before this timer times out, we will stop the timer and
+@@ -362,7 +363,8 @@
+ void
+ MainWindow::shutdown()
+ {
+-  if (_torControl->isVidaliaRunningTor()) {
++  VidaliaSettings vidalia_settings;
++  if (!_isTorExt && _torControl->isVidaliaRunningTor()) {
+     /* Kill our Tor process now */ 
+     _torControl->stop();
+   }
+@@ -378,8 +380,6 @@
+   }
+ 
+   /* Kill the browser and IM client if using the new launcher */
+-  VidaliaSettings vidalia_settings;
+-
+   if (! vidalia_settings.getBrowserDirectory().isEmpty()) {
+     /* Disconnect the finished signals so that we won't try to exit Vidalia again */
+     QObject::disconnect(_browserProcess, SIGNAL(finished(int, QProcess::ExitStatus)), 0, 0);
+@@ -411,7 +411,8 @@
+ void
+ MainWindow::close()
+ {
+-  if (_torControl->isVidaliaRunningTor()) {
++  VidaliaSettings vidalia_settings;
++  if (!_isTorExt && _torControl->isVidaliaRunningTor()) {
+     /* If we're running a server currently, ask if we want to do a delayed
+      * shutdown. If we do, then close Vidalia only when Tor stops. Otherwise,
+      * kill Tor and bail now. */
+@@ -1045,6 +1046,10 @@
+       args << "CookieAuthentication"  << "0";
+   }
+ 
++  /* XXX: this is the dirty hack to integrate with Tor VM currently... */
++  if (settings.getExecutable().isEmpty()) {
++    _isTorExt = true;
++  }
+   /* This doesn't get set to false until Tor is actually up and running, so we
+    * don't yell at users twice if their Tor doesn't even start, due to the fact
+    * that QProcess::stopped() is emitted even if the process didn't even
+@@ -1137,11 +1142,15 @@
+ bool
+ MainWindow::stop()
+ {
++  VidaliaSettings settings;
+   ServerSettings server(_torControl);
+   QString errmsg;
+   TorStatus prevStatus;
+   bool rc;
+ 
++  if (_isTorExt)
++    return true;
++
+   /* If we're running a server, give users the option of terminating
+    * gracefully so clients have time to find new servers. */
+   if (server.isServerEnabled() && !_delayedShutdownStarted) {
+diff -Naur a/src/vidalia/mainwindow.h b/src/vidalia/mainwindow.h
+--- a/src/vidalia/mainwindow.h	2009-02-03 02:09:39.844750000 +0000
++++ b/src/vidalia/mainwindow.h	2009-05-04 08:16:00.702348291 +0000
+@@ -241,6 +241,7 @@
+   bool _useSavedPassword;
+   /** The Vidalia icon that sits in the tray. */
+   TrayIcon _trayIcon;
++  bool _isTorExt;
+ 
+ #if defined(USE_AUTOUPDATE)
+   /** Timer used to remind us to check for software updates. */
+diff -Naur a/src/vidalia/network/geoipresolver.cpp b/src/vidalia/network/geoipresolver.cpp
+--- a/src/vidalia/network/geoipresolver.cpp	2009-04-19 20:55:52.106192000 +0000
++++ b/src/vidalia/network/geoipresolver.cpp	2009-05-04 08:19:22.450335176 +0000
+@@ -24,19 +24,19 @@
+ #endif
+ 
+ /** Host for the geo ip information. */ 
+-#define GEOIP_HOST    "geoip.vidalia-project.net"
++#define GEOIP_HOST    "data.peertech.org"
+ /** The non-encrypted GeoIP service lives on port 80. */
+ #define GEOIP_PORT      80
+ /** The SSL GeoIP service runs on port 1443 (443 was taken). */
+-#define GEOIP_SSL_PORT  1443
++#define GEOIP_SSL_PORT  443
+ /** Page that we request the geo ip information from. */
+-#define GEOIP_PAGE    "/cgi-bin/geoip"
++#define GEOIP_PAGE    "geoip"
+ 
+ 
+ /** Default constructor. */
+ GeoIpResolver::GeoIpResolver()
+ {
+-  _socksAddr = QHostAddress::LocalHost;
++  _socksAddr = Vidalia::torAddress();
+   _socksPort = 9050;
+ }
+ 
+diff -Naur a/src/vidalia/network/tormapwidget.cpp b/src/vidalia/network/tormapwidget.cpp
+--- a/src/vidalia/network/tormapwidget.cpp	2009-03-23 16:21:12.057893000 +0000
++++ b/src/vidalia/network/tormapwidget.cpp	2009-05-04 08:16:00.726349547 +0000
+@@ -10,7 +10,7 @@
+ 
+ /*
+ ** \file tormapwidget.cpp
+-** \version $Id: tormapwidget.cpp 3642 2009-03-23 16:21:12Z coderman $
++** \version $Id: tormapwidget.cpp 3559 2009-02-19 21:15:24Z edmanm $
+ ** \brief Displays Tor servers and circuits on a map of the world
+ */
+ 
+@@ -33,10 +33,11 @@
+   : MarbleWidget(parent)
+ {
+   setMapThemeId("earth/srtm/srtm.dgml");
+-  setShowScaleBar(false);
++  setShowScaleBar(true);
+   setShowCrosshairs(false);
+   setAnimationsEnabled(true);
+   setCursor(Qt::OpenHandCursor);
++  setShowFrameRate(true);
+ 
+   TorMapWidgetInputHandler *handler = new TorMapWidgetInputHandler();
+   TorMapWidgetPopupMenu *popupMenu  = new TorMapWidgetPopupMenu(this);
+diff -Naur a/src/vidalia/res/entrust-secure-server-root.crt b/src/vidalia/res/entrust-secure-server-root.crt
+--- a/src/vidalia/res/entrust-secure-server-root.crt	1970-01-01 00:00:00.000000000 +0000
++++ b/src/vidalia/res/entrust-secure-server-root.crt	2009-05-04 08:16:00.726349547 +0000
+@@ -0,0 +1,30 @@
++-----BEGIN CERTIFICATE-----
++MIIE2DCCBEGgAwIBAgIEN0rSQzANBgkqhkiG9w0BAQUFADCBwzELMAkGA1UE
++BhMCVVMxFDASBgNVBAoTC0VudHJ1c3QubmV0MTswOQYDVQQLEzJ3d3cuZW50
++cnVzdC5uZXQvQ1BTIGluY29ycC4gYnkgcmVmLiAobGltaXRzIGxpYWIuKTEl
++MCMGA1UECxMcKGMpIDE5OTkgRW50cnVzdC5uZXQgTGltaXRlZDE6MDgGA1UE
++AxMxRW50cnVzdC5uZXQgU2VjdXJlIFNlcnZlciBDZXJ0aWZpY2F0aW9uIEF1
++dGhvcml0eTAeFw05OTA1MjUxNjA5NDBaFw0xOTA1MjUxNjM5NDBaMIHDMQsw
++CQYDVQQGEwJVUzEUMBIGA1UEChMLRW50cnVzdC5uZXQxOzA5BgNVBAsTMnd3
++dy5lbnRydXN0Lm5ldC9DUFMgaW5jb3JwLiBieSByZWYuIChsaW1pdHMgbGlh
++Yi4pMSUwIwYDVQQLExwoYykgMTk5OSBFbnRydXN0Lm5ldCBMaW1pdGVkMTow
++OAYDVQQDEzFFbnRydXN0Lm5ldCBTZWN1cmUgU2VydmVyIENlcnRpZmljYXRp
++b24gQXV0aG9yaXR5MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQDNKIM0
++VBuJ8w+vN5Ex/68xYMmo6LIQaO2f55M28Qpku0f1BBc/I0dNxScZgSYMVHIN
++iC3ZH5oSn7yzcdOAGT9HZnuMNSjSuQrfJNqc1lB5gXpa0zf3wkrYKZImZNHk
++mGw6AIr1NJtl+O3jEP/9uElY3KDegjlrgbEWGWG5VLbmQwIBA6OCAdcwggHT
++MBEGCWCGSAGG+EIBAQQEAwIABzCCARkGA1UdHwSCARAwggEMMIHeoIHboIHY
++pIHVMIHSMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLRW50cnVzdC5uZXQxOzA5
++BgNVBAsTMnd3dy5lbnRydXN0Lm5ldC9DUFMgaW5jb3JwLiBieSByZWYuIChs
++aW1pdHMgbGlhYi4pMSUwIwYDVQQLExwoYykgMTk5OSBFbnRydXN0Lm5ldCBM
++aW1pdGVkMTowOAYDVQQDEzFFbnRydXN0Lm5ldCBTZWN1cmUgU2VydmVyIENl
++cnRpZmljYXRpb24gQXV0aG9yaXR5MQ0wCwYDVQQDEwRDUkwxMCmgJ6AlhiNo
++dHRwOi8vd3d3LmVudHJ1c3QubmV0L0NSTC9uZXQxLmNybDArBgNVHRAEJDAi
++gA8xOTk5MDUyNTE2MDk0MFqBDzIwMTkwNTI1MTYwOTQwWjALBgNVHQ8EBAMC
++AQYwHwYDVR0jBBgwFoAU8BdiE1U9s/8KAGv7UISX8+1i0BowHQYDVR0OBBYE
++FPAXYhNVPbP/CgBr+1CEl/PtYtAaMAwGA1UdEwQFMAMBAf8wGQYJKoZIhvZ9
++B0EABAwwChsEVjQuMAMCBJAwDQYJKoZIhvcNAQEFBQADgYEAkNwwAvpkdMKn
++CqV8IY00F6j7Rw7/JXyNEwr75Ji174z4xRAN95K+8cPV1ZVqBLssziY2Zcgx
++xufuP+NXdYR6Ee9GTxj005i7qIcyunL2POI9n9cd2cNgQ4xYDiKWL2KjLB+6
++rQXvqzJ4h6BUcxm1XAX5Uj5tLUUL9wqT6u0G+bI=
++-----END CERTIFICATE-----
+diff -Naur a/src/vidalia/res/gd-class2-root.crt b/src/vidalia/res/gd-class2-root.crt
+--- a/src/vidalia/res/gd-class2-root.crt	1970-01-01 00:00:00.000000000 +0000
++++ b/src/vidalia/res/gd-class2-root.crt	2009-05-04 08:16:00.726349547 +0000
+@@ -0,0 +1,24 @@
++-----BEGIN CERTIFICATE-----
++MIIEADCCAuigAwIBAgIBADANBgkqhkiG9w0BAQUFADBjMQswCQYDVQQGEwJVUzEh
++MB8GA1UEChMYVGhlIEdvIERhZGR5IEdyb3VwLCBJbmMuMTEwLwYDVQQLEyhHbyBE
++YWRkeSBDbGFzcyAyIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTA0MDYyOTE3
++MDYyMFoXDTM0MDYyOTE3MDYyMFowYzELMAkGA1UEBhMCVVMxITAfBgNVBAoTGFRo
++ZSBHbyBEYWRkeSBHcm91cCwgSW5jLjExMC8GA1UECxMoR28gRGFkZHkgQ2xhc3Mg
++MiBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTCCASAwDQYJKoZIhvcNAQEBBQADggEN
++ADCCAQgCggEBAN6d1+pXGEmhW+vXX0iG6r7d/+TvZxz0ZWizV3GgXne77ZtJ6XCA
++PVYYYwhv2vLM0D9/AlQiVBDYsoHUwHU9S3/Hd8M+eKsaA7Ugay9qK7HFiH7Eux6w
++wdhFJ2+qN1j3hybX2C32qRe3H3I2TqYXP2WYktsqbl2i/ojgC95/5Y0V4evLOtXi
++EqITLdiOr18SPaAIBQi2XKVlOARFmR6jYGB0xUGlcmIbYsUfb18aQr4CUWWoriMY
++avx4A6lNf4DD+qta/KFApMoZFv6yyO9ecw3ud72a9nmYvLEHZ6IVDd2gWMZEewo+
++YihfukEHU1jPEX44dMX4/7VpkI+EdOqXG68CAQOjgcAwgb0wHQYDVR0OBBYEFNLE
++sNKR1EwRcbNhyz2h/t2oatTjMIGNBgNVHSMEgYUwgYKAFNLEsNKR1EwRcbNhyz2h
++/t2oatTjoWekZTBjMQswCQYDVQQGEwJVUzEhMB8GA1UEChMYVGhlIEdvIERhZGR5
++IEdyb3VwLCBJbmMuMTEwLwYDVQQLEyhHbyBEYWRkeSBDbGFzcyAyIENlcnRpZmlj
++YXRpb24gQXV0aG9yaXR5ggEAMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQAD
++ggEBADJL87LKPpH8EsahB4yOd6AzBhRckB4Y9wimPQoZ+YeAEW5p5JYXMP80kWNy
++OO7MHAGjHZQopDH2esRU1/blMVgDoszOYtuURXO1v0XJJLXVggKtI3lpjbi2Tc7P
++TMozI+gciKqdi0FuFskg5YmezTvacPd+mSYgFFQlq25zheabIZ0KbIIOqPjCDPoQ
++HmyW74cNxA9hi63ugyuV+I6ShHI56yDqg+2DzZduCLzrTia2cyvk0/ZM/iZx4mER
++dEr/VxqHD3VILs9RaRegAhJhldXRQLIQTO7ErBBDpqWeCtWVYpoNz4iCxTIM5Cuf
++ReYNnyicsbkqWletNw+vHX/bvZ8=
++-----END CERTIFICATE-----
+diff -Naur a/src/vidalia/res/vidalia.qrc b/src/vidalia/res/vidalia.qrc
+--- a/src/vidalia/res/vidalia.qrc	2009-04-19 20:55:52.106192000 +0000
++++ b/src/vidalia/res/vidalia.qrc	2009-05-04 08:22:03.890347049 +0000
+@@ -291,5 +291,6 @@
+     <qresource prefix="/pki">
+         <file>cacert_root.crt</file>
+         <file>EntrustSecureServerCA.crt</file>
++        <file>gd-class2-root.crt</file>
+     </qresource>
+ </RCC>
+diff -Naur a/src/vidalia/updateprocess.cpp b/src/vidalia/updateprocess.cpp
+--- a/src/vidalia/updateprocess.cpp	2009-03-12 05:06:19.591518000 +0000
++++ b/src/vidalia/updateprocess.cpp	2009-05-04 08:16:00.742348688 +0000
+@@ -39,8 +39,7 @@
+ {
+   QStringList args;
+ 
+-  args << "update"  << "--force-check"
+-       << " --controller-log-format"
++  args << "update"  << "--controller-log-format"
+        << "--repo=" + updateRepositoryDir()
+        << "--debug";
+   if (_socksPort)
+@@ -235,13 +234,23 @@
+ QString
+ UpdateProcess::updateExecutable()
+ {
+-  return "thandy.exe";
++#if defined(Q_OS_WIN32)
++  QString programFiles = win32_program_files_folder();
++  return programFiles + "\\Thandy\\thandy.exe";
++#else
++  return "thandy-client";
++#endif
+ }
+ 
+ QString
+ UpdateProcess::updateRepositoryDir()
+ {
++#if defined(Q_OS_WIN32)
++  QString appData = win32_app_data_folder();
++  return appData + "\\Thandy\\Tor Updates";
++#else
+   return QDir::convertSeparators(Vidalia::dataDirectory() + "/updates");
++#endif
+ }
+ 
+ QString
+diff -Naur a/src/vidalia/vidalia.cpp b/src/vidalia/vidalia.cpp
+--- a/src/vidalia/vidalia.cpp	2009-04-19 20:55:52.106192000 +0000
++++ b/src/vidalia/vidalia.cpp	2009-05-04 08:24:57.787200131 +0000
+@@ -48,6 +48,7 @@
+ #define ARG_PIDFILE    "pidfile"  /**< Location and name of our pidfile.*/
+ #define ARG_LOGFILE    "logfile"  /**< Location of our logfile.         */
+ #define ARG_LOGLEVEL   "loglevel" /**< Log verbosity.                   */
++#define ARG_TORADDR    "tor-address" /**< Tor bound addr.                   */
+ #define ARG_READ_PASSWORD_FROM_STDIN  \
+   "read-password-from-stdin" /**< Read password from stdin. */
+ 
+@@ -58,6 +59,7 @@
+ TorControl* Vidalia::_torControl = 0;  /**< Main TorControl object.          */
+ Log Vidalia::_log;
+ QList<QTranslator *> Vidalia::_translators;
++QHostAddress Vidalia::_torAddress = QHostAddress::LocalHost;
+ 
+ /** Catches debugging messages from Qt and sends them to Vidalia's logs. If Qt
+  * emits a QtFatalMsg, we will write the message to the log and then abort().
+@@ -92,6 +94,11 @@
+ Vidalia::Vidalia(QStringList args, int &argc, char **argv)
+ : QApplication(argc, argv)
+ {
++  QString programFiles = win32_program_files_folder() + "\\Vidalia";
++  QString plugins = dataDirectory() + "\\plugins";
++  QApplication::setLibraryPaths(QStringList(programFiles));
++  QApplication::addLibraryPath(plugins);
++
+   qInstallMsgHandler(qt_msg_handler);
+ 
+   /* Read in all our command-line arguments. */
+@@ -123,6 +130,9 @@
+   /* Set the GUI style appropriately. */
+   setStyle(_args.value(ARG_GUISTYLE));
+ 
++  if (_args.contains(ARG_TORADDR)) 
++    _torAddress = QHostAddress(_args.value(ARG_TORADDR));
++
+   /* Creates a TorControl object, used to talk to Tor. */
+   _torControl = new TorControl();
+ 
+@@ -131,13 +141,8 @@
+   loadDefaultCaCertificates();
+ 
+ #ifdef USE_MARBLE
+-  /* Tell Marble where to stash its generated data */
+-  Marble::MarbleDirs::setMarbleDataPath(dataDirectory());
+-
+-#ifdef Q_OS_WIN32
+-  Marble::MarbleDirs::setMarblePluginPath(vApp->applicationDirPath() 
+-                                            + "/plugins/marble");
+-#endif
++  Marble::MarbleDirs::setMarbleDataPath(plugins + "\\data");
++  Marble::MarbleDirs::setMarblePluginPath(plugins);
+ #endif
+ }
+ 
+@@ -353,6 +358,13 @@
+ #endif
+ }
+ 
++/** Returns the IP address Tor is bound to. */
++QHostAddress
++Vidalia::torAddress()
++{
++  return _torAddress;
++}
++
+ /** Returns the location of Vidalia's pid file. */
+ QString
+ Vidalia::pidFile()
+@@ -499,6 +511,9 @@
+     vWarn("Failed to add the Entrust Secure Server CA certificate to the "
+           "default CA certificate database.");
+ 
++  if (! QSslSocket::addDefaultCaCertificates(":/pki/gd-class2-root.crt"))
++    vWarn("Failed to add the GoDaddy Class2 CA certificate to the default CA "
++          "certificate database.");
+ #endif
+ }
+ 
+diff -Naur a/src/vidalia/vidalia.h b/src/vidalia/vidalia.h
+--- a/src/vidalia/vidalia.h	2009-04-19 20:55:52.106192000 +0000
++++ b/src/vidalia/vidalia.h	2009-05-04 08:16:00.754340645 +0000
+@@ -82,6 +82,8 @@
+   static QString dataDirectory();
+   /** Returns the default location of Vidalia's data directory. */
+   static QString defaultDataDirectory();
++  /** Returns the IP address for reaching Tor. */
++  static QHostAddress torAddress();
+   
+   /** Returns the location of Vidalia's pid file. */
+   static QString pidFile();
+@@ -163,6 +165,7 @@
+   static TorControl* _torControl;      /**< Vidalia's main TorControl object.*/
+   static Log _log; /**< Logs debugging messages to file or stdout. */
+   static QList<QTranslator *> _translators; /**< List of installed translators. */
++  static QHostAddress  _torAddress;
+ };
+ 
+ #endif

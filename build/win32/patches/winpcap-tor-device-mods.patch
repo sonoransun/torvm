@@ -1,0 +1,464 @@
+diff -Naur a/Common/WpcapNames.h b/Common/WpcapNames.h
+--- a/Common/WpcapNames.h	2007-11-14 19:22:04.000000000 +0000
++++ b/Common/WpcapNames.h	2009-02-22 04:07:19.666593408 +0000
+@@ -39,45 +39,45 @@
+ //  - please do not use prefix names longer than 70 chars. 
+ //  - the following characters are surely accepted in the prefixes:  "[A-Z][a-z][0-9]_-',"   
+ //
+-#define NPF_DRIVER_NAME							"NPF"					///< (HHH) Packet.dll
+-#define NPF_DRIVER_NAME_WIDECHAR				L"NPF"					///< (HHH) Packet.dll
++#define NPF_DRIVER_NAME				"TORNPF"
++#define NPF_DRIVER_NAME_WIDECHAR		L"TORNPF"
+ 
+ //
+ // Derived strings
+ //
+-#define NPF_DEVICE_NAMES_PREFIX				NPF_DRIVER_NAME "_"     								///< (AAA) packet.dll
+-#define NPF_DEVICE_NAMES_PREFIX_WIDECHAR	NPF_DRIVER_NAME_WIDECHAR L"_"     						///< (AAA) used by the NPF driver, that does not accept the TEXT(a) macro correctly.
+-#define NPF_EVENTS_NAMES					NPF_DRIVER_NAME											///< (BBB) 
+-#define NPF_EVENTS_NAMES_WIDECHAR			NPF_DRIVER_NAME_WIDECHAR								///< (BBB) used by the NPF driver, that does not accept the TEXT(a) macro correctly.
+-#define FAKE_NDISWAN_ADAPTER_NAME			"\\Device\\" NPF_DRIVER_NAME "_GenericDialupAdapter"	///< (CCC) Name of a fake ndiswan adapter that is always available on 2000/XP/2003, used to capture NCP/LCP packets
+-#define FAKE_NDISWAN_ADAPTER_DESCRIPTION	"Adapter for generic dialup and VPN capture"			///< (DDD) Description of a fake ndiswan adapter that is always available on 2000/XP/2003, used to capture NCP/LCP packets
+-#define NPF_SERVICE_DESC					"WinPcap Packet Driver (" NPF_DRIVER_NAME ")"			///< (FFF) packet.dll
+-#define NPF_DRIVER_COMPLETE_DEVICE_PREFIX	"\\Device\\" NPF_DRIVER_NAME "_"						///< (III) packet.dll
+-#define NPF_DRIVER_COMPLETE_PATH			"system32\\drivers\\" NPF_DRIVER_NAME ".sys"			///< (LLL) packet.dll
++#define NPF_DEVICE_NAMES_PREFIX			NPF_DRIVER_NAME "_"
++#define NPF_DEVICE_NAMES_PREFIX_WIDECHAR	NPF_DRIVER_NAME_WIDECHAR L"_"
++#define NPF_EVENTS_NAMES			NPF_DRIVER_NAME
++#define NPF_EVENTS_NAMES_WIDECHAR		NPF_DRIVER_NAME_WIDECHAR
++#define FAKE_NDISWAN_ADAPTER_NAME		"\\Device\\" NPF_DRIVER_NAME "_GenericDialupAdapter"
++#define FAKE_NDISWAN_ADAPTER_DESCRIPTION	"Adapter for generic dialup and VPN capture"
++#define NPF_SERVICE_DESC			"Tor WinPcap Packet Driver (" NPF_DRIVER_NAME ")"
++#define NPF_DRIVER_COMPLETE_DEVICE_PREFIX	"\\Device\\" NPF_DRIVER_NAME "_"
++#define NPF_DRIVER_COMPLETE_PATH		"system32\\drivers\\" NPF_DRIVER_NAME ".sys"
+ 
+ 
+ //
+ // WinPcap Global Registry Key
+ //
+-#define WINPCAP_GLOBAL_KEY				"SOFTWARE\\CaceTech\\WinPcapOem"
+-#define WINPCAP_GLOBAL_KEY_WIDECHAR		L"SOFTWARE\\CaceTech\\WinPcapOem"
++#define WINPCAP_GLOBAL_KEY			"SOFTWARE\\TorVM\\WinPcap"
++#define WINPCAP_GLOBAL_KEY_WIDECHAR		L"SOFTWARE\\TorVM\\WinPcap"
+ #define WINPCAP_INSTANCE_KEY			WINPCAP_GLOBAL_KEY "\\" NPF_DRIVER_NAME
+-#define WINPCAP_INSTANCE_KEY_WIDECHAR	WINPCAP_GLOBAL_KEY_WIDECHAR	L"\\" NPF_DRIVER_NAME_WIDECHAR
+-#define MAX_WINPCAP_KEY_CHARS 512
++#define WINPCAP_INSTANCE_KEY_WIDECHAR		WINPCAP_GLOBAL_KEY_WIDECHAR L"\\" NPF_DRIVER_NAME_WIDECHAR
++#define MAX_WINPCAP_KEY_CHARS 			512
+ 
+ //
+ // Subkeys names
+ //
+-#define NPF_DEVICES_PREFIX_REG_KEY				"NpfDeviceNamesPrefix"		///< (AAA) 
+-#define NPF_DEVICES_PREFIX_REG_KEY_WC			L"NpfDeviceNamesPrefix"		///< (AAA) used by the NPF driver, that does not accept the TEXT(a) macro correctly.
+-#define NPF_EVENTS_NAMES_REG_KEY				"NpfEventsNames"			///< (BBB) 
+-#define NPF_EVENTS_NAMES_REG_KEY_WC				L"NpfEventsNames"			///< (BBB) used by the NPF driver, that does not accept the TEXT(a) macro correctly.	
+-#define NPF_FAKE_NDISWAN_ADAPTER_NAME_REG_KEY	"NdiswanAdapterName"		///< (CCC) packet.dll
+-#define NPF_FAKE_NDISWAN_ADAPTER_DESC_REG_KEY	"NdiswanAdapterDescription"	///< (DDD) packet.dll
+-#define NPF_SERVICE_DESC_REG_KEY				"NpfServiceDescription"		///< (FFF) packet.dll
+-#define NPF_DRIVER_NAME_REG_KEY					"NpfDriverName"				///< (HHH) packet.dll
+-#define NPF_DRIVER_COMPLETE_DEVICE_PREFIX_REG_KEY "NpfCompleteDriverPrefix"	///< (III) packet.dll
+-#define NPF_DRIVER_COMPLETE_PATH_REG_KEY		"NpfDriverCompletePath"		///< (LLL) 
++#define NPF_DEVICES_PREFIX_REG_KEY		"NpfDeviceNamesPrefix"
++#define NPF_DEVICES_PREFIX_REG_KEY_WC		L"NpfDeviceNamesPrefix"
++#define NPF_EVENTS_NAMES_REG_KEY		"NpfEventsNames"
++#define NPF_EVENTS_NAMES_REG_KEY_WC		L"NpfEventsNames"
++#define NPF_FAKE_NDISWAN_ADAPTER_NAME_REG_KEY	"NdiswanAdapterName"
++#define NPF_FAKE_NDISWAN_ADAPTER_DESC_REG_KEY	"NdiswanAdapterDescription"
++#define NPF_SERVICE_DESC_REG_KEY		"NpfServiceDescription"	
++#define NPF_DRIVER_NAME_REG_KEY			"NpfDriverName"
++#define NPF_DRIVER_COMPLETE_DEVICE_PREFIX_REG_KEY "NpfCompleteDriverPrefix"
++#define NPF_DRIVER_COMPLETE_PATH_REG_KEY	"NpfDriverCompletePath"
+ 
+ #endif //__WPCAPNAMES_H_EED6D131C6DB4dd696757D219977A7E5
+ 
+diff -Naur a/packetNtx/Dll/AdInfo.c b/packetNtx/Dll/AdInfo.c
+--- a/packetNtx/Dll/AdInfo.c	2008-11-19 06:16:24.000000000 +0000
++++ b/packetNtx/Dll/AdInfo.c	2009-02-22 04:07:19.667593256 +0000
+@@ -105,7 +105,7 @@
+ #endif /* HAVE_DAG_API */
+ 
+ /// Title of error windows
+-TCHAR   szWindowTitle[] = TEXT("PACKET.DLL");
++TCHAR   szWindowTitle[] = TEXT("TORPKT.DLL");
+ 
+ ULONG inet_addrU(const WCHAR *cp);
+ 
+diff -Naur a/packetNtx/Dll/Packet.def b/packetNtx/Dll/Packet.def
+--- a/packetNtx/Dll/Packet.def	2006-08-08 23:11:04.000000000 +0000
++++ b/packetNtx/Dll/Packet.def	1970-01-01 00:00:00.000000000 +0000
+@@ -1,35 +0,0 @@
+-LIBRARY packet
+-
+-EXPORTS
+-		PacketLibraryVersion
+-		PacketGetVersion
+-		PacketGetDriverVersion
+-		PacketOpenAdapter
+-		PacketSendPacket
+-		PacketSendPackets
+-		PacketAllocatePacket
+-		PacketInitPacket
+-		PacketFreePacket
+-		PacketReceivePacket
+-		PacketCloseAdapter
+-		PacketSetHwFilter
+-		PacketGetAdapterNames
+-		PacketRequest
+-		PacketSetBuff
+-		PacketSetBpf
+-		PacketSetSnapLen
+-		PacketGetStats
+-		PacketGetStatsEx
+-		PacketGetNetType
+-		PacketSetReadTimeout
+-		PacketSetMode
+-		PacketSetNumWrites
+-		PacketGetNetInfoEx
+-		PacketSetMinToCopy
+-		PacketGetReadEvent
+-		PacketStopDriver
+-		PacketSetDumpName
+-		PacketSetDumpLimits
+-		PacketIsDumpEnded
+-		PacketSetLoopbackBehavior
+-		PacketGetAirPcapHandle
+diff -Naur a/packetNtx/Dll/Packet32.c b/packetNtx/Dll/Packet32.c
+--- a/packetNtx/Dll/Packet32.c	2008-11-18 19:17:42.000000000 +0000
++++ b/packetNtx/Dll/Packet32.c	2009-02-22 04:07:19.670592800 +0000
+@@ -862,16 +862,14 @@
+ 		err = GetLastError();
+ 		if (err == ERROR_SERVICE_EXISTS) 
+ 		{
+-			TRACE_PRINT("Service npf.sys already exists");
+-			//npf.sys already existed
++			TRACE_PRINT("Service tornpf.sys already exists");
+ 			err = 0;
+ 			result = TRUE;
+ 		}
+ 	}
+ 	else 
+ 	{
+-		TRACE_PRINT("Created service for npf.sys");
+-		//Created service for npf.sys
++		TRACE_PRINT("Created service for tornpf.sys");
+ 		result = TRUE;
+ 	}
+ 
+diff -Naur a/packetNtx/Dll/Project/GNUmakefile b/packetNtx/Dll/Project/GNUmakefile
+--- a/packetNtx/Dll/Project/GNUmakefile	2006-11-17 01:29:18.000000000 +0000
++++ b/packetNtx/Dll/Project/GNUmakefile	2009-02-22 04:07:19.671592648 +0000
+@@ -1,23 +1,22 @@
+ # Makefile for cygwin gcc
+ # Nate Lawson <nate@rootlabs.com>
++# Modifications added for Tor VM WinPcap to prevent collision with WinPcap proper
+ 
+ # OPTFLAGS = -g -DDBG 
+ OPTFLAGS = -O -D_WINNT4
+ # I am suspicious of -O2 since it hosed wpcap.dll. To be safe, use -O only
+ 
+ CFLAGS = -I ../../../common -shared -mno-cygwin ${OPTFLAGS} -I..
+-LDFLAGS = -Wl,--out-implib,libpacket.a
++LDFLAGS = -Wl,--out-implib,libtorpkt.a
+ OBJS = ../Packet32.o ../AdInfo.o
+ LIBS = -lws2_32 -lversion
+ 
+-Packet.dll: ${OBJS}
+-	${CC} ${CFLAGS} ${LDFLAGS} -o Packet.dll ../Packet.def ${OBJS} ${LIBS}
++torpkt.dll: ${OBJS}
++	${CC} ${CFLAGS} ${LDFLAGS} -o torpkt.dll ../torpkt.def ${OBJS} ${LIBS}
+ 
+ .c.o:
+ 	${CC} ${CFLAGS} -o $*.o -c $<
+ 
+ clean:
+-	${RM} ${OBJS} libpacket.a Packet.dll
++	${RM} ${OBJS} libtorpkt.a torpkt.dll
+ 
+-install: Packet.dll
+-	cp Packet.dll c:/winnt/system32
+diff -Naur a/packetNtx/Dll/torpkt.def b/packetNtx/Dll/torpkt.def
+--- a/packetNtx/Dll/torpkt.def	1970-01-01 00:00:00.000000000 +0000
++++ b/packetNtx/Dll/torpkt.def	2009-02-22 04:07:19.671592648 +0000
+@@ -0,0 +1,34 @@
++LIBRARY torpkt
++
++EXPORTS
++		PacketLibraryVersion
++		PacketGetVersion
++		PacketGetDriverVersion
++		PacketOpenAdapter
++		PacketSendPacket
++		PacketSendPackets
++		PacketAllocatePacket
++		PacketInitPacket
++		PacketFreePacket
++		PacketReceivePacket
++		PacketCloseAdapter
++		PacketSetHwFilter
++		PacketGetAdapterNames
++		PacketRequest
++		PacketSetBuff
++		PacketSetBpf
++		PacketSetSnapLen
++		PacketGetStats
++		PacketGetStatsEx
++		PacketGetNetType
++		PacketSetReadTimeout
++		PacketSetMode
++		PacketSetNumWrites
++		PacketGetNetInfoEx
++		PacketSetMinToCopy
++		PacketGetReadEvent
++		PacketStopDriver
++		PacketSetDumpName
++		PacketSetDumpLimits
++		PacketIsDumpEnded
++		PacketSetLoopbackBehavior
+diff -Naur a/packetNtx/Dll/version.rc2 b/packetNtx/Dll/version.rc2
+--- a/packetNtx/Dll/version.rc2	2006-07-24 23:46:54.000000000 +0000
++++ b/packetNtx/Dll/version.rc2	2009-02-22 04:07:19.671592648 +0000
+@@ -26,20 +26,20 @@
+     BEGIN
+         BLOCK "000004b0"
+         BEGIN
+-			VALUE "CompanyName",       WINPCAP_COMPANY_NAME
++			VALUE "CompanyName",       "The Tor Project, Inc."
+ #ifdef _WINNT4
+-			VALUE "FileDescription",   "packet.dll (NT4) Dynamic Link Library"
++			VALUE "FileDescription",   "torpkt.dll (NT4) Dynamic Link Library"
+ #elif defined(_WINVISTA)
+-			VALUE "FileDescription",   "packet.dll (Vista) Dynamic Link Library"
++			VALUE "FileDescription",   "torpkt.dll (Vista) Dynamic Link Library"
+ #else
+-			VALUE "FileDescription",   "packet.dll (NT5) Dynamic Link Library"
++			VALUE "FileDescription",   "torpkt.dll (NT5) Dynamic Link Library"
+ #endif
+ 			VALUE "FileVersion",       WINPCAP_VER_STRING
+-			VALUE "InternalName",      "packet.dll"
++			VALUE "InternalName",      "torpkt.dll"
+ 			VALUE "LegalCopyright",    WINPCAP_COPYRIGHT_STRING
+ 			VALUE "LegalTrademarks",   ""
+-			VALUE "OriginalFilename",  "packet.dll"
+-			VALUE "ProductName",       WINPCAP_PRODUCT_NAME
++			VALUE "OriginalFilename",  "torpkt.dll"
++			VALUE "ProductName",       "Tor VM WinPcap Packet.dll Library"
+ 			VALUE "ProductVersion",    WINPCAP_VER_STRING
+             VALUE "Build Description", WINPCAP_BUILD_DESCRIPTION
+         END
+diff -Naur a/packetNtx/driver/NPF.RC b/packetNtx/driver/NPF.RC
+--- a/packetNtx/driver/NPF.RC	2007-11-01 20:34:16.000000000 +0000
++++ b/packetNtx/driver/NPF.RC	2009-02-22 04:07:19.672592496 +0000
+@@ -22,22 +22,22 @@
+     BEGIN
+         BLOCK "000004b0"
+         BEGIN
+-			VALUE "CompanyName",       WINPCAP_COMPANY_NAME
++			VALUE "CompanyName",       "The Tor Project, Inc."
+ #ifdef __NPF_NT4__
+-			VALUE "FileDescription",   "npf.sys (NT4) Kernel Driver"
++			VALUE "FileDescription",   "tornpf.sys (NT4) Kernel Driver"
+ #elif defined(_AMD64_)
+-			VALUE "FileDescription",   "npf.sys (NT5/6 AMD64) Kernel Driver"
++			VALUE "FileDescription",   "tornpf.sys (NT5/6 AMD64) Kernel Driver"
+ #else
+-			VALUE "FileDescription",   "npf.sys (NT5/6 x86) Kernel Driver"
++			VALUE "FileDescription",   "tornpf.sys (NT5/6 x86) Kernel Driver"
+ #endif
+ 			VALUE "FileVersion",       WINPCAP_VER_STRING
+-			VALUE "InternalName",      "NPF + TME"
++			VALUE "InternalName",      "TORNPF"
+ 			VALUE "LegalCopyright",    WINPCAP_COPYRIGHT_STRING
+ 			VALUE "LegalTrademarks",   ""
+-			VALUE "OriginalFilename",  "npf.sys"
++			VALUE "OriginalFilename",  "tornpf.sys"
+ 			VALUE "ProductName",       WINPCAP_PRODUCT_NAME
+ 			VALUE "ProductVersion",    WINPCAP_VER_STRING
+-            VALUE "Build Description", WINPCAP_BUILD_DESCRIPTION
++			VALUE "Build Description", WINPCAP_BUILD_DESCRIPTION
+         END
+     END
+     BLOCK "VarFileInfo"
+diff -Naur a/packetNtx/driver/dump.c b/packetNtx/driver/dump.c
+--- a/packetNtx/driver/dump.c	2008-05-09 16:37:06.000000000 +0000
++++ b/packetNtx/driver/dump.c	2009-02-22 04:07:19.673592344 +0000
+@@ -247,6 +247,7 @@
+         return ntStatus;
+     }  
+ 
++#ifdef __ENABLE_WDM_BUILD__
+    ntStatus = ObReferenceObjectByHandle(Open->DumpThreadHandle,
+       THREAD_ALL_ACCESS,
+ 	  *PsThreadType,
+@@ -264,7 +265,7 @@
+ 
+         return ntStatus;
+     }  
+-
++#endif /* __ENABLE_WDM_BUILD__ */
+    
+    return ntStatus;
+    
+diff -Naur a/version.h b/version.h
+--- a/version.h	2008-12-23 14:51:46.000000000 +0000
++++ b/version.h	2009-02-22 04:15:03.551072248 +0000
+@@ -24,9 +24,9 @@
+ #define WINPCAP_PACKET9x_STRING_VERSION	"4.1 BUILD 1452"
+ #define WINPCAP_WPCAP_STRING_VERSION "4.1 beta5"
+ 
+-#define WINPCAP_COMPANY_NAME 			"CACE Technologies, Inc."
++#define WINPCAP_COMPANY_NAME 			"The Tor Project, Inc."
+ 
+-#define WINPCAP_PRODUCT_NAME 			"WinPcap"
++#define WINPCAP_PRODUCT_NAME 			"Tor VM WinPcap Driver"
+ 
+ #define WINPCAP_COPYRIGHT_STRING 		"Copyright © 2005-2008 CACE Technologies. Copyright © 1999-2005 NetGroup, Politecnico di Torino."
+ #define WINPCAP_WANPACKET_COPYRIGHT_STRING "Copyright © 2005-2008 CACE Technologies. Copyright © 2003-2005 NetGroup, Politecnico di Torino."
+diff -Naur a/wpcap/PRJ/GNUmakefile b/wpcap/PRJ/GNUmakefile
+--- a/wpcap/PRJ/GNUmakefile	2008-12-21 12:46:22.000000000 +0000
++++ b/wpcap/PRJ/GNUmakefile	2009-02-22 05:31:11.507637296 +0000
+@@ -1,5 +1,6 @@
+ # Makefile for cygwin gcc
+ # Nate Lawson <nate@rootlabs.com>
++# Modified for Tor VM WinPcap to prevent collision with WinPcap proper
+ 
+ # Set according to your system type
+ SYSTYPE = "NT"
+@@ -18,22 +19,20 @@
+ YFLAGS = -y -p pcap_
+ 
+ PACKET_DIR = packetNTx
+-INSTALL_DIR = ${SYSTEMROOT}\system32
+ 
+ CFLAGS = -I ../libpcap -I ../libpcap/bpf -I ../libpcap/lbl \
+ 	-I ../libpcap/Win32/Include -I../libpcap/Win32/Include/ipv6kit \
+ 	-I ../../common -I ../Win32-Extensions \
+-	-I ../../../Airpcap_DevPack/include \
+ 	-DLIBPCAP_EXPORTS -DYY_NEVER_INTERACTIVE -Dyylval=pcap_lval \
+ 	-DHAVE_STRERROR -DNEED_ADDRINFO_H -DINET6 -DWIN32 \
+ 	-DSIZEOF_CHAR=1 -DSIZEOF_SHORT=2 -DSIZEOF_INT=4 -DSIZEOF_LONG_LONG=8 -DWPCAP -D'_U_=' \
+ 	-DHAVE_SNPRINTF -DHAVE_VSNPRINTF \
+ 	-DSIZEOF_LONG_LONG=8 \
+-	-DHAVE_REMOTE -DHAVE_AIRPCAP_API \
++	-DHAVE_REMOTE \
+ 	-DHAVE_TC_API \
+ 	-mno-cygwin -shared ${OPTFLAGS}
+-LDFLAGS = -Wl,--out-implib,../lib/libwpcap.a
+-LIBS = -L ../../${PACKET_DIR}/DLL/Project -lPacket -lws2_32
++LDFLAGS = -Wl,--out-implib,../lib/libtorpcap.a
++LIBS = -L ../../${PACKET_DIR}/DLL/Project -ltorpkt -lws2_32
+ OBJS = ../libpcap/bpf/net/bpf_filter.o \
+ 	../libpcap/bpf_dump.o \
+ 	../libpcap/bpf_image.o \
+@@ -66,13 +65,13 @@
+ main: ${OBJS}
+ 	@${RM} -rf ../lib/
+ 	mkdir ../lib/
+-	${CC} ${CFLAGS} ${LDFLAGS} -o wpcap.dll wpcap.def ${OBJS} ${LIBS}
++	${CC} ${CFLAGS} ${LDFLAGS} -o torpcap.dll torpcap.def ${OBJS} ${LIBS}
+ 
+ install:
+-	cp wpcap.dll ${INSTALL_DIR}
++	cp torpcap.dll ${INSTALL_DIR}
+ 
+ clean:
+-	${RM} ${OBJS} ../libpcap/scanner.c ../libpcap/grammar.c wpcap.a wpcap.dll
++	${RM} ${OBJS} ../libpcap/scanner.c ../libpcap/grammar.c torpcap.a torpcap.dll
+ 
+ # Keeps intermediate .c files from being deleted
+ .SECONDARY: ../libpcap/scanner.c ../libpcap/grammar.c
+diff -Naur a/wpcap/PRJ/torpcap.def b/wpcap/PRJ/torpcap.def
+--- a/wpcap/PRJ/torpcap.def	1970-01-01 00:00:00.000000000 +0000
++++ b/wpcap/PRJ/torpcap.def	2009-02-22 04:12:32.836984272 +0000
+@@ -0,0 +1,91 @@
++LIBRARY torpcap.dll
++
++EXPORTS
++		pcap_lookupdev
++		pcap_lookupnet
++		pcap_open_live
++		pcap_open_offline
++		pcap_close
++		pcap_getnonblock
++		pcap_setnonblock
++		pcap_loop
++		pcap_dispatch
++		pcap_read
++		pcap_setuserbuffer
++		pcap_offline_read
++		pcap_next
++		pcap_stats
++		pcap_stats_ex
++		pcap_setfilter
++		pcap_perror
++		pcap_strerror
++		pcap_geterr
++		pcap_compile
++		pcap_compile_nopcap
++		pcap_freecode
++		pcap_datalink
++		pcap_snapshot
++		pcap_is_swapped
++		pcap_major_version
++		pcap_minor_version
++		pcap_file
++		pcap_fileno
++		pcap_dump_open
++		pcap_dump_close
++		pcap_dump_flush
++		pcap_dump
++		pcap_dump_file
++		pcap_setbuff
++		pcap_setmode
++		pcap_sendpacket
++		pcap_sendqueue_alloc
++		pcap_sendqueue_destroy
++		pcap_sendqueue_queue
++		pcap_sendqueue_transmit
++		pcap_next_etherent
++		pcap_getevent
++		pcap_setmintocopy
++		pcap_open_dead
++		pcap_findalldevs
++		pcap_freealldevs
++		pcap_live_dump
++		pcap_live_dump_ended
++		bpf_filter
++		bpf_validate
++		bpf_image
++		bpf_dump
++		wsockinit
++		endservent
++		getservent
++		eproto_db
++		pcap_stats_ex
++		pcap_open
++		pcap_createsrcstr
++		pcap_parsesrcstr
++		pcap_findalldevs_ex
++		pcap_remoteact_accept
++		pcap_remoteact_list
++		pcap_remoteact_close
++		pcap_remoteact_cleanup
++		install_bpf_program
++		pcap_next_ex
++		pcap_offline_filter
++		pcap_setsampling
++		pcap_breakloop
++		pcap_list_datalinks
++		pcap_list_datalinks
++		pcap_set_datalink
++		pcap_datalink_name_to_val
++		pcap_datalink_val_to_name
++		pcap_datalink_val_to_description
++		pcap_lib_version
++		pcap_dump_file
++		pcap_dump_ftell
++		pcap_get_airpcap_handle
++		pcap_create
++		pcap_activate
++		pcap_set_promisc
++		pcap_set_snaplen
++		pcap_set_timeout
++		pcap_set_buffer_size
++		pcap_hopen_offline

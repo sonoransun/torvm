@@ -1,0 +1,42 @@
+diff -Naur a/Configure b/Configure
+--- a/Configure	2009-02-16 08:44:22.000000000 +0000
++++ b/Configure	2009-04-05 02:24:48.927195384 +0000
+@@ -480,7 +480,7 @@
+ "BC-32","bcc32::::WIN32::BN_LLONG DES_PTR RC4_INDEX EXPORT_VAR_AS_FN:${no_asm}:win32",
+ 
+ # MinGW
+-"mingw", "gcc:-mno-cygwin -DL_ENDIAN -fomit-frame-pointer -O3 -march=i486 -Wall -D_WIN32_WINNT=0x333:::MINGW32:-lwsock32 -lgdi32:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts} EXPORT_VAR_AS_FN:${x86_coff_asm}:win32:cygwin-shared:-D_WINDLL -DOPENSSL_USE_APPLINK:-mno-cygwin -shared:.dll.a",
++"mingw", "gcc:-DL_ENDIAN -fomit-frame-pointer -O3 -march=i486 -Wall -D_WIN32_WINNT=0x333:::MINGW32:-lws2_32 -lgdi32:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts} EXPORT_VAR_AS_FN:${x86_coff_asm}:win32:cygwin-shared:-D_WINDLL -DOPENSSL_USE_APPLINK:-Wl,--export-all -mno-cygwin -shared:.dll.a",
+ 
+ # UWIN 
+ "UWIN", "cc:-DTERMIOS -DL_ENDIAN -O -Wall:::UWIN::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${no_asm}:win32",
+@@ -1059,7 +1059,7 @@
+ 
+ my $IsMK1MF=scalar grep /^$target$/,@MK1MF_Builds;
+ 
+-$IsMK1MF=1 if ($target eq "mingw" && $^O ne "cygwin" && !is_msys());
++### $IsMK1MF=1 if ($target eq "mingw" && $^O ne "cygwin" && !is_msys());
+ 
+ $no_shared = 0 if ($fipsdso && !$IsMK1MF);
+ 
+diff -Naur a/Makefile.org b/Makefile.org
+--- a/Makefile.org	2009-03-03 22:40:29.000000000 +0000
++++ b/Makefile.org	2009-04-05 02:24:48.928195232 +0000
+@@ -131,7 +131,7 @@
+ 
+ BASEADDR=
+ 
+-DIRS=   crypto fips ssl engines apps test tools
++DIRS=   crypto fips ssl engines apps
+ SHLIBDIRS= crypto ssl fips
+ 
+ # dirs in crypto to build
+@@ -319,7 +319,7 @@
+ 	../crypto/uid.o
+ 
+ sub_all: build_all
+-build_all: build_libs build_apps build_tests build_tools
++build_all: build_libs build_apps 
+ 
+ build_libs: build_crypto build_fips build_ssl build_shared build_engines
+ 

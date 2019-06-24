@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Creating Limited Windows User Accounts</title><meta name="generator" content="DocBook XSL Stylesheets V1.68.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="usercreate"></a>Creating Limited Windows User Accounts</h1></div><div><div class="author"><h3 class="author"><span class="firstname">Martin</span> <span class="surname">Peck</span></h3><div class="affiliation"><div class="address"><p><code class="email">&lt;<a href="mailto:coderman at gmail dot com">coderman at gmail dot com</a>&gt;</code></p></div></div></div></div><div><p class="copyright">Copyright © 2009 The Tor Project, Inc.</p></div><div><p class="pubdate">March 10, 2009</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#id2486682">1. Introduction</a></span></dt><dd><dl><dt><span class="sect2"><a href="#leastprivs">1.1. Defense In Depth With Reduced Privilege Accounts</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2465281">2. Create Limited User</a></span></dt><dd><dl><dt><span class="sect2"><a href="#X">2.1. User Accounts Utility</a></span></dt><dt><span class="sect2"><a href="#switchuser">2.2. Switch User</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2457418">3. Legal Notice</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2486682"></a>1. Introduction</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="leastprivs"></a>1.1. Defense In Depth With Reduced Privilege Accounts</h3></div></div></div><p>
+Many applications for Windows operating systems fail to implement even the most basic separation of
+ priveleges between applications. The ability to restrict the rights of untrusted applications by user
+ is present on all supported versions of Windows. Preventing rogue code from escalating an application
+ flaw into full host compromise is a useful defensive technique despite the additional effort required.
+   </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2465281"></a>2. Create Limited User</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="X"></a>2.1. User Accounts Utility</h3></div></div></div><p>
+Navigate to the control panel.
+     </p><div class="mediaobject"><img src="img/uc01.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Select "Create a new account" option.
+     </p><div class="mediaobject"><img src="img/uc02.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Provide a nickname for the anonymous limited user account.
+     </p><div class="mediaobject"><img src="img/uc03.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The "Limited" account type is the reduced privilege user option.
+     </p><div class="mediaobject"><img src="img/uc04.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+Create the account.
+     </p><div class="mediaobject"><img src="img/uc05.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The new user is added to the list of accounts on the local system.
+     </p><div class="mediaobject"><img src="img/uc06.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="switchuser"></a>2.2. Switch User</h3></div></div></div><p>
+You can have multiple user "sessions" active at the same time and switch foreground
+ between them as shown:
+     </p><div class="mediaobject"><img src="img/uc07.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The first time you log in as a new user the personal settings initialization may
+ take longer than usual.
+     </p><div class="mediaobject"><img src="img/uc08.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The new limited user desktop has its own configuration and environment.
+     </p><div class="mediaobject"><img src="img/uc09.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2457418"></a>3. Legal Notice</h2></div></div></div><p>
+You may distribute or modify this document according to the terms of the <a href="http://www.gnu.org/licenses/fdl-1.2.txt" target="_top">GNU Free Documentation License Version 1.2 or later</a>.
+  </p><p>
+"<span class="trademark">Tor</span>® is a registered trademark of The Tor Project, Inc."
+  </p><p>
+"<span class="trademark">Windows</span>® is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </p></div></div></body></html>

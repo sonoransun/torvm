@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Using the 3D Marble Map Widget In Vidalia</title><meta name="generator" content="DocBook XSL Stylesheets V1.68.1" /></head><body><div class="article" lang="en" xml:lang="en"><div class="titlepage"><div><div><h1 class="title"><a id="timezone"></a>Using the 3D Marble Map Widget In Vidalia</h1></div><div><div class="author"><h3 class="author"><span class="firstname">Martin</span> <span class="surname">Peck</span></h3><div class="affiliation"><div class="address"><p><code class="email">&lt;<a href="mailto:coderman at gmail dot com">coderman at gmail dot com</a>&gt;</code></p></div></div></div></div><div><p class="copyright">Copyright © 2009 The Tor Project, Inc.</p></div><div><p class="pubdate">March 10, 2009</p></div></div><hr /></div><div class="toc"><p><b>Table of Contents</b></p><dl><dt><span class="sect1"><a href="#id2486682">1. Introduction</a></span></dt><dd><dl><dt><span class="sect2"><a href="#leastprivs">1.1. 3D Map Projection</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2465272">2. Vidalia Marble Map Widget</a></span></dt><dd><dl><dt><span class="sect2"><a href="#X">2.1. Vidalia Marble Packages</a></span></dt><dt><span class="sect2"><a href="#Z">2.2. Launch Vidalia Marble</a></span></dt><dt><span class="sect2"><a href="#Y">2.3. Minimal Marble Data Setup</a></span></dt></dl></dd><dt><span class="sect1"><a href="#id2457326">3. Legal Notice</a></span></dt></dl></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2486682"></a>1. Introduction</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="leastprivs"></a>1.1. 3D Map Projection</h3></div></div></div><p>
+A new 3D projection map is available in Vidalia using the Marble Qt widget.
+ If sufficient CPU power is available the responsiveness of this new 3D widget
+ is easily usable.
+   </p></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2465272"></a>2. Vidalia Marble Map Widget</h2></div></div></div><p>
+  </p><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="X"></a>2.1. Vidalia Marble Packages</h3></div></div></div><p>
+There are two versions of the Vidalia Marble package. The first is a full Marbla data
+ installer that is around double the usual size. If bandwidth or storage permits this
+ is the recommended package type. The full installer can repair any of the individual
+ generated tile images and eliminates initial run overhead for generating missing
+ tiles on demand.
+   </p></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="Z"></a>2.2. Launch Vidalia Marble</h3></div></div></div><p>
+There is a link for the Marble and legacy versions of Vidalia. Be sure to launch the
+ right Marble version of the controller.
+     </p><div class="mediaobject"><img src="img/marble01.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+If your system can support framerates in excess of 20 frames per second the Marble map
+ should be pleasantly interactive.  If host load or processing power is insufficient
+ for the Marble map the usual 2D flat map widget should be used.
+     </p><div class="mediaobject"><img src="img/marble02.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div><div class="sect2" lang="en" xml:lang="en"><div class="titlepage"><div><div><h3 class="title"><a id="Y"></a>2.3. Minimal Marble Data Setup</h3></div></div></div><p>
+The full set of image tiles uses a fair amount of space. If bandwidth is scarce the
+ alternative minimal package can be used instead. This version will generate the tree
+ of image tile files on demand.
+     </p><div class="mediaobject"><img src="img/marbledata.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div><p>
+The first time the minimal Marble version is run the image tiles will be generated
+ on demand before Vidalia starts. If any of these files in the plugins data directory
+ get corrupted you will need to remove the entire directory and re-create it again.
+ The package repair option for data files is only available in the full Marble data
+ package.
+     </p><div class="mediaobject"><img src="img/marblegen.png" /></div><p>
+   </p><div class="literallayout"><p><br />
+<br />
+   </p></div></div></div><div class="sect1" lang="en" xml:lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id2457326"></a>3. Legal Notice</h2></div></div></div><p>
+You may distribute or modify this document according to the terms of the <a href="http://www.gnu.org/licenses/fdl-1.2.txt" target="_top">GNU Free Documentation License Version 1.2 or later</a>.
+  </p><p>
+"<span class="trademark">Tor</span>® is a registered trademark of The Tor Project, Inc."
+  </p><p>
+"<span class="trademark">Windows</span>® is a registered trademark of Microsoft Corporation in the United States and other countries."
+  </p></div></div></body></html>

@@ -1,0 +1,91 @@
+
+ TorVM - Transparent Tor Proxy Virtual Machine for Windows
+
+See the doc/ directory for design and implementation details and the LICENSE
+file for rights and terms.
+
+To build you will need a *nix environment and a Windows XP or later operating
+system for Qemu and libraries.  Various build configuration options and other
+basic features are not yet avilable; edit the Makefile to adjust manually.
+
+
+NOTE: Some subversion repositories are accessed via SSL with keys that may need
+to be accepted manually.  To confirm that you have authenticated the keys used
+issue the following commands as the build user and approve the keys if needed:
+
+    svn info https://svn.torproject.org/svn/torvm/trunk/
+    # Fingerprint: 55:62:fe:1b:60:f9:35:fa:50:44:dd:33:ea:54:77:26:e4:da:5f:72
+
+    svn info https://svn.openwrt.org/openwrt/trunk/
+    # Fingerprint: a1:0a:d8:2d:af:4e:67:92:18:a0:27:b6:9f:2b:e1:12:08:28:a0:b1
+
+    svn info https://svn.vidalia-project.net/svn/vidalia/trunk/
+    # Fingerprint: 2d:ef:71:c5:5a:00:a5:26:e8:ad:0d:e9:d0:fb:8a:54:3a:6d:2d:61
+
+
+Run 'make' to build the VM kernel image and Windows build ISO image.  Once the
+Windows build is done a complete Tor virtual machine package should be zipped
+up ready for distribution in the C:\Tor_VM folder.  You will need to have the
+Windows Driver Development Kit installed for the WinPcap and TAP-Win32 driver
+compilation.  You can download the DDK installer ISO at:
+
+    http://download.microsoft.com/download/9/0/f/90f019ac-8243-48d3-91cf-81fc4093ecfd/1830_usa_ddk.iso
+
+
+Some files and paths of interest:
+
+./build/kamikaze/x86-vm/bin/openwrt-x86-vmlinuz
+> this is the Linux kernel and initramfs used in the VM.
+
+./build/win32/w32build.iso
+> this is the automated win32 build ISO for Qemu.  Once everything is built
+> the Qemu program and libraries will be placed in C:\Tor_VM
+> Packaged bundles and installers are saved in C:\Tor_Win32
+
+./build/kamikaze/patches/
+> this directory contains the patch set applied to the kamikaze distribution
+> for Tor VM customizations.
+
+./build/win32/files/
+> this directory contains the scripts and files used in the Windows build and
+> packaged Qemu Tor_VM folder.
+
+./build/win32/patches/
+> this directory contains the patches applied to Qemu for bridged ethernet
+> support via WinPcap and modifications for the WinPcap and TAP-Win32 drivers
+> to prevent collision with any existing installed packages.
+
+./build/kamikaze/ipv6-advnet-patches/
+> copy these files over the default patches/ to build a Tor VM kernel with
+> IPv6, advanced filtering and shaping capabilities, kernel crypto support
+> for IPsec and a number of different TCP/SCTP/misc protocols. for testing
+> experimentation only!
+
+
+Fully automated builds are supported with some minor modifications to both the
+Linux build host and the win32 build VM.  There are three steps to this setup:
+
+First, create a restricted user where the build targets will be copied to from
+the win32 build VM OS.  You can use the /bin/rbash restricted shell or similar
+utility to ensure that scp privileges and not much else are provided.  Create an
+SSH identity key for this user and copy the private key where the build user can
+access it.
+
+Second, configure the win32 build VM OS with a Startup script that invokes the
+install.bat script on the win32 build ISO image.  This image is assumed to be
+mounted when the win32 build VM OS boots up.
+
+Last, pass the requisite information to the build script so that the necessary
+commands are invoked during build to launch the win32 build VM and have the
+completed build files copied back out to the host.  For example:
+
+    make W32AUTO_BUILD_CMD=/var/build/runbldvm.sh   \
+         AUTO_SHUTDOWN=TRUE                         \
+         BUILD_SCP_IDF=/var/build/build_id_rsa      \
+         BUILD_SCP_USER=build                       \
+         BUILD_SCP_HOST=192.168.1.2                 \
+         BUILD_SCP_DIR=/home/build
+
+When the build completes a Tor_VM_<timestamp> directory will be created in the
+requested location.  The timestamp is an integer value representing the UNIX
+epoch in seconds.
